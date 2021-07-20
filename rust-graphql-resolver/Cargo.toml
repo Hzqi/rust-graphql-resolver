@@ -1,0 +1,16 @@
+[package]
+authors = ["Hzqi <Hzqi_110@hotmail.com>"]
+edition = "2018"
+name = "rust-graphql-resolver"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = {version = "0.4", features = ["serde"]}
+dyn-clone = "1.0.4"
+gurkle-parser = "0.3.0"
+log = "0.4"
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+thiserror = "1.0"
