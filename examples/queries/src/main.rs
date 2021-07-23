@@ -9,11 +9,14 @@ use std::{
 use rust_graphql_resolver::{
     error::{Error, Result},
     execute,
-    parser::schema::Value,
     schema::{
-        ApiResolveFunc, ArgumentMap, CustomType, DefaultFieldResolveFunc, Field, FieldType,
-        InputField, InputFieldType, NotSupported, QLApiParam, QLContext, QLEnum, QLEnumValue,
-        QLInput, Query, QueryMap, Schema,
+        field::{
+            ArgumentMap, CustomType, Field, FieldType, InputField, InputFieldType, QLEnum,
+            QLEnumValue, QLInput,
+        },
+        query::{Query, QueryMap},
+        resolve::{ApiResolveFunc, DefaultFieldResolveFunc, QLApiParam, QLContext},
+        Schema,
     },
     value::DataValue,
 };
@@ -21,14 +24,12 @@ use rust_graphql_resolver::{
 fn init_schema(datas: Vec<DataValue>) -> Schema {
     let mut schema = Schema {
         id: "queries_schema".to_string(),
-        subscrition: NotSupported,
-        mutation: NotSupported,
-        query: QueryMap {
-            queries: HashMap::new(),
-            objects: HashMap::new(),
-            enums: HashMap::new(),
-            inputs: HashMap::new(),
-        },
+        subscritions: None,
+        mutations: None,
+        queries: QueryMap::new(),
+        objects: HashMap::new(),
+        enums: HashMap::new(),
+        inputs: HashMap::new(),
     };
 
     // Color Enum
@@ -50,10 +51,7 @@ fn init_schema(datas: Vec<DataValue>) -> Schema {
             },
         ],
     };
-    schema
-        .query
-        .enums
-        .insert("Color".to_string(), Rc::new(color));
+    schema.enums.insert("Color".to_string(), Rc::new(color));
 
     // FullObject
     let full_object = CustomType {
@@ -71,12 +69,7 @@ fn init_schema(datas: Vec<DataValue>) -> Schema {
                 Field {
                     name: "color".to_string(),
                     field_type: FieldType::ReferenceEnum(
-                        schema
-                            .query
-                            .enums
-                            .get(&"Color".to_string())
-                            .unwrap()
-                            .clone(),
+                        schema.enums.get(&"Color".to_string()).unwrap().clone(),
                     ),
                     description: String::default(),
                     resolve: Box::new(DefaultFieldResolveFunc),
@@ -120,7 +113,6 @@ fn init_schema(datas: Vec<DataValue>) -> Schema {
         ])),
     };
     schema
-        .query
         .objects
         .insert("FullObject".to_string(), Rc::new(RefCell::new(full_object)));
 
@@ -140,33 +132,27 @@ fn init_schema(datas: Vec<DataValue>) -> Schema {
                 InputField {
                     name: "color".to_string(),
                     field_type: InputFieldType::ObjectFieldType(FieldType::ReferenceEnum(
-                        schema
-                            .query
-                            .enums
-                            .get(&"Color".to_string())
-                            .unwrap()
-                            .clone(),
+                        schema.enums.get(&"Color".to_string()).unwrap().clone(),
                     )),
                     description: String::default(),
                 },
             ),
         ])),
     };
-    schema.query.inputs.insert(
+    schema.inputs.insert(
         "SearchFullObjectInput".to_string(),
         Rc::new(RefCell::new(search_full_object_input)),
     );
 
     let query_full_object_datas = Query {
         field_type: FieldType::List(Box::new(FieldType::ReferenceCustom(Rc::downgrade(
-            schema.query.objects.get(&"FullObject".to_string()).unwrap(),
+            schema.objects.get(&"FullObject".to_string()).unwrap(),
         )))),
         arguments: ArgumentMap::default(),
         description: String::default(),
         resolve: create_func(datas.clone()),
     };
     schema
-        .query
         .queries
         .insert("fullObjects".to_string(), query_full_object_datas);
 
@@ -183,7 +169,7 @@ fn create_func(datas: Vec<DataValue>) -> Box<dyn ApiResolveFunc> {
                 .get(&"condition".to_string())
                 .ok_or(Error::NotFoundError("argument: 'condition'".to_string()))?;
             match condition {
-                Value::Object(map) => query_data(datas.clone(), map),
+                DataValue::Object(map) => query_data(datas.clone(), map),
                 _ => Err(Error::DataTypeMisMatchError(
                     "input condition".to_string(),
                     "not match".to_string(),
@@ -193,7 +179,7 @@ fn create_func(datas: Vec<DataValue>) -> Box<dyn ApiResolveFunc> {
     )
 }
 
-fn query_data(datas: Vec<DataValue>, map: &BTreeMap<String, Value>) -> Result<DataValue> {
+fn query_data(datas: Vec<DataValue>, map: &BTreeMap<String, DataValue>) -> Result<DataValue> {
     let target = datas
         .iter()
         .cloned()
@@ -202,46 +188,22 @@ fn query_data(datas: Vec<DataValue>, map: &BTreeMap<String, Value>) -> Result<Da
                 DataValue::Object(m) => {
                     let mut p = true;
                     if map.contains_key("id") {
-                        if let Value::String(str) = map.get("id").unwrap() {
-                            if let DataValue::String(data_str) = m.get("id").unwrap() {
-                                p = str == data_str && p;
-                            }
-                        }
+                        p = m.get("id").unwrap() == map.get("id").unwrap() && p;
                     }
                     if map.contains_key("str") {
-                        if let Value::String(str) = map.get("str").unwrap() {
-                            if let DataValue::String(data_str) = m.get("str").unwrap() {
-                                p = str == data_str && p;
-                            }
-                        }
+                        p = m.get("str").unwrap() == map.get("str").unwrap() && p;
                     }
                     if map.contains_key("int") {
-                        if let Value::Int(num) = map.get("int").unwrap() {
-                            if let DataValue::Int(data_i) = m.get("int").unwrap() {
-                                p = num.as_i64().unwrap() == data_i.to_owned() && p;
-                            }
-                        }
+                        p = m.get("int").unwrap() == map.get("int").unwrap() && p;
                     }
                     if map.contains_key("float") {
-                        if let Value::Float(f) = map.get("float").unwrap() {
-                            if let DataValue::Float(data_f) = m.get("float").unwrap() {
-                                p = f == data_f && p;
-                            }
-                        }
+                        p = m.get("float").unwrap() == map.get("float").unwrap() && p;
                     }
                     if map.contains_key("bool") {
-                        if let Value::Boolean(b) = map.get("bool").unwrap() {
-                            if let DataValue::Boolean(data_b) = m.get("bool").unwrap() {
-                                p = b == data_b && p;
-                            }
-                        }
+                        p = m.get("bool").unwrap() == map.get("bool").unwrap() && p;
                     }
                     if map.contains_key("color") {
-                        if let Value::Enum(e) = map.get("color").unwrap() {
-                            if let DataValue::String(data_e) = m.get("color").unwrap() {
-                                p = e == data_e && p;
-                            }
-                        }
+                        p = m.get("color").unwrap() == map.get("color").unwrap() && p;
                     }
                     p
                 }

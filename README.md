@@ -2,13 +2,14 @@
 
 This a simple tool to implement graphql.
 
-For twot reasons: 
+For two reasons: 
 1. you want more lower layer controls.
 2. you want to build graphql on runtime.
 
 But it has many todos:
 - [ ] Mutation (that should be easy as query)
 - [ ] Subscrition
+- [ ] Document validation
 - [ ] Web Tools (docs, graphiql)
 - [ ] async (this shouldn't be difficuly)
 

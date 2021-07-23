@@ -3,7 +3,7 @@ pub mod schema;
 pub mod value;
 pub use gurkle_parser as parser;
 
-use schema::{QLContext, Schema};
+use schema::{resolve::QLContext, Schema};
 use value::DataValue;
 
 use crate::error::{Error, Result};

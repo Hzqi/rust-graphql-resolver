@@ -6,7 +6,9 @@ use serde::{
 };
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone)]
+use gurkle_parser::query::Value as ParserValue;
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum DataValue {
     ID(String),
     String(String),
@@ -17,6 +19,31 @@ pub enum DataValue {
     Null,
     List(Vec<DataValue>),
     Object(BTreeMap<String, DataValue>),
+}
+
+// From transform from parser value
+impl From<ParserValue> for DataValue {
+    fn from(value: ParserValue) -> Self {
+        match value {
+            ParserValue::Variable(str) => DataValue::String(str),
+            ParserValue::Int(num) => DataValue::Int(num.as_i64().unwrap()),
+            ParserValue::Float(f) => DataValue::Float(f),
+            ParserValue::String(str) => DataValue::String(str),
+            ParserValue::Boolean(b) => DataValue::Boolean(b),
+            ParserValue::Null => DataValue::Null,
+            ParserValue::Enum(str) => DataValue::String(str),
+            ParserValue::List(list) => {
+                DataValue::List(list.into_iter().map(|v| DataValue::from(v)).collect())
+            }
+            ParserValue::Object(map) => {
+                let new_map = map
+                    .into_iter()
+                    .map(|(k, v)| (k, DataValue::from(v)))
+                    .collect::<BTreeMap<String, DataValue>>();
+                DataValue::Object(new_map)
+            }
+        }
+    }
 }
 
 // Serialize for DataValue to json

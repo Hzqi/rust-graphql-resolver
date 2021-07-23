@@ -1,210 +1,22 @@
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    fmt::Debug,
+    rc::{Rc, Weak},
+};
+
+use gurkle_parser::query::Selection;
+
 use crate::{
     error::{Error, Result},
     value::DataValue,
 };
-use dyn_clone::{clone_trait_object, DynClone};
-use gurkle_parser::query::{
-    self, Definition, Document, OperationDefinition, Selection, Value as CommonValue,
-};
-use std::{
-    array::IntoIter,
-    cell::RefCell,
-    collections::{BTreeMap, HashMap},
-    fmt::Debug,
-    iter::FromIterator,
-    rc::{Rc, Weak},
+
+use super::resolve::{
+    ArgumentValueMap, DefaultFieldResolveFunc, FieldResolveFunc, QLApiParam, QLContext,
 };
 
-/// NotSupported
-#[derive(Clone, Debug)]
-pub struct NotSupported;
-
-/// Schema: The main logic struct
-/// * query: definition for query apis, and resolve by request
-/// * mutation: todo
-/// * subscrition: todo
-#[derive(Clone, Debug)]
-pub struct Schema {
-    /// for tracting instance's id
-    pub id: String,
-    pub query: QueryMap,
-    /// TODO: Mutation
-    pub mutation: NotSupported,
-    /// TODO: Subscrition
-    pub subscrition: NotSupported,
-}
-
-impl Schema {
-    pub(crate) fn execute_document(
-        &self,
-        context: QLContext,
-        mut doc: Document,
-    ) -> Result<DataValue> {
-        if doc.definitions.is_empty() {
-            return Ok(DataValue::Null);
-        }
-        let def = doc.definitions.remove(0);
-        match def {
-            Definition::Operation(op) => {
-                let data = self.execute_operate(context, op)?;
-                Ok(DataValue::Object(BTreeMap::from_iter(IntoIter::new([(
-                    "data".to_string(),
-                    data,
-                )]))))
-            }
-            Definition::Fragment(_) => {
-                return Err(Error::UnSupportedYetError(
-                    "'Fragment' in schema request".to_string(),
-                ))
-            }
-        }
-    }
-
-    pub(crate) fn execute_operate(
-        &self,
-        context: QLContext,
-        op: OperationDefinition,
-    ) -> Result<DataValue> {
-        match op {
-            OperationDefinition::SelectionSet(sets) => {
-                let mut result = BTreeMap::<String, DataValue>::new();
-                for set in sets.items {
-                    match set {
-                        Selection::Field(field) => {
-                            let name = field.name.clone();
-                            let query_result = self
-                                .query
-                                .queries
-                                .get(&name)
-                                .ok_or(Error::NotFoundError(format!("Query api {}", &name)))?
-                                .execute(context.clone(), field)?;
-                            result.insert(name, query_result);
-                        }
-                        Selection::FragmentSpread(_) => {
-                            return Err(Error::UnSupportedYetError(
-                                "'FragmentSpread' in query(selection sets)".to_string(),
-                            ))
-                        }
-                        Selection::InlineFragment(_) => {
-                            return Err(Error::UnSupportedYetError(
-                                "'InlineFragment' in query(selection sets)".to_string(),
-                            ))
-                        }
-                    }
-                }
-                return Ok(DataValue::Object(result));
-            }
-            OperationDefinition::Query(queries) => {
-                let mut result = BTreeMap::<String, DataValue>::new();
-                for set in queries.selection_set.items {
-                    match set {
-                        Selection::Field(field) => {
-                            let name = field.name.clone();
-                            let query_result = self
-                                .query
-                                .queries
-                                .get(&name)
-                                .ok_or(Error::NotFoundError(format!("Query api {}", &name)))?
-                                .execute(context.clone(), field)?;
-                            result.insert(name, query_result);
-                        }
-                        Selection::FragmentSpread(_) => {
-                            return Err(Error::UnSupportedYetError(
-                                "'FragmentSpread' in query(selection sets)".to_string(),
-                            ))
-                        }
-                        Selection::InlineFragment(_) => {
-                            return Err(Error::UnSupportedYetError(
-                                "'InlineFragment' in query(selection sets)".to_string(),
-                            ))
-                        }
-                    }
-                }
-                return Ok(DataValue::Object(result));
-            }
-            OperationDefinition::Mutation(_mutations) => Err(Error::UnSupportedYetError(
-                "'Mutation' in schema request".to_string(),
-            )),
-            OperationDefinition::Subscription(_sub) => Err(Error::UnSupportedYetError(
-                "'Subscription' in schema request".to_string(),
-            )),
-        }
-    }
-}
-
-impl Drop for Schema {
-    fn drop(&mut self) {
-        println!("schema [{}] dropped", self.id)
-    }
-}
-
-/// QueryMap
-#[derive(Clone, Debug)]
-pub struct QueryMap {
-    pub queries: HashMap<String, Query>,
-    pub objects: HashMap<String, Rc<RefCell<CustomType>>>,
-    pub enums: HashMap<String, Rc<QLEnum>>,
-    pub inputs: HashMap<String, Rc<RefCell<QLInput>>>,
-}
-
-/// Query
-#[derive(Clone)]
-pub struct Query {
-    pub field_type: FieldType,
-    pub arguments: ArgumentMap,
-    pub description: String,
-    pub resolve: Box<dyn ApiResolveFunc>,
-}
-
-impl Query {
-    pub(crate) fn execute(&self, context: QLContext, field: query::Field) -> Result<DataValue> {
-        let parameter = QLApiParam {
-            arguments: field.arguments.into_iter().collect(),
-            selection_sets: field.selection_set.items,
-        };
-        let resolve_result = self.resolve.call(context.clone(), parameter.clone())?;
-        self.field_type.execute(context, parameter, resolve_result)
-    }
-}
-
-impl Debug for Query {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "Query{{field_type: {:?}, description: {}, resolve: <ApiResolveFunc>}}",
-            self.field_type, self.description
-        )
-    }
-}
-
-/// ApiResolveFunc
-///
-/// This is a function (closure) to resolve graphql api restule data
-/// * context: storage and transfer key-value through invoking nested
-/// * parameter: arguments and selection_sets from graphql request
-pub trait ApiResolveFunc: DynClone {
-    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<DataValue>;
-}
-clone_trait_object!(ApiResolveFunc);
-
-impl<F> ApiResolveFunc for F
-where
-    F: Fn(QLContext, QLApiParam) -> Result<DataValue> + Clone,
-{
-    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<DataValue> {
-        self(context, parameter)
-    }
-}
-
-/// QLContext
-pub type QLContext = HashMap<String, DataValue>;
-
-/// QLApiParam
-#[derive(Clone, Debug)]
-pub struct QLApiParam {
-    pub arguments: HashMap<String, CommonValue>,
-    pub selection_sets: Vec<Selection>,
-}
+use gurkle_parser::query as parser;
 
 /// FieldType
 #[derive(Clone, Debug)]
@@ -381,10 +193,10 @@ impl Field {
         &self,
         context: QLContext,
         source: DataValue,
-        field: query::Field,
+        field: parser::Field,
     ) -> Result<DataValue> {
         let parameter = QLApiParam {
-            arguments: field.arguments.into_iter().collect(),
+            arguments: ArgumentValueMap::from(field.arguments),
             selection_sets: field.selection_set.items.clone(),
         };
         let resolve_result = self
@@ -461,51 +273,6 @@ impl Debug for Field {
             "Field{{name: {}, field_type: {:?}, description: {}, resolve: <FieldResolveFunc>}}",
             self.name, self.field_type, self.description
         )
-    }
-}
-
-/// FieldResolveFunc
-///
-/// This is a function (closure) that for field to resolve its data result.
-/// * context: storage and transfer key-value through invoking nested
-/// * source: parent data value result, you can get the data from last layer, but only one layer
-/// * parameter: arguments and selection_sets from graphql request
-pub trait FieldResolveFunc: DynClone {
-    fn call(
-        &self,
-        context: QLContext,
-        source: DataValue,
-        parameter: QLApiParam,
-    ) -> Result<DataValue>;
-}
-clone_trait_object!(FieldResolveFunc);
-
-impl<F> FieldResolveFunc for F
-where
-    F: Fn(QLContext, DataValue, QLApiParam) -> Result<DataValue> + Clone,
-{
-    fn call(
-        &self,
-        context: QLContext,
-        source: DataValue,
-        parameter: QLApiParam,
-    ) -> Result<DataValue> {
-        self(context, source, parameter)
-    }
-}
-
-/// DefaultFieldResolveFunc return Err(...)
-#[derive(Debug, Clone)]
-pub struct DefaultFieldResolveFunc;
-
-impl FieldResolveFunc for DefaultFieldResolveFunc {
-    fn call(
-        &self,
-        _context: QLContext,
-        _source: DataValue,
-        _parameter: QLApiParam,
-    ) -> Result<DataValue> {
-        Err(Error::DefaultResolveError)
     }
 }
 
