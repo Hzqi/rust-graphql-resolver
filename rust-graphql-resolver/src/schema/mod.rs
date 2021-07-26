@@ -136,9 +136,35 @@ impl Schema {
                 }
                 return Ok(DataValue::Object(result));
             }
-            OperationDefinition::Mutation(_mutations) => Err(Error::UnSupportedYetError(
-                "'Mutation' in schema request".to_string(),
-            )),
+            OperationDefinition::Mutation(mutations) => {
+                let mut result = BTreeMap::<String, DataValue>::new();
+                for set in mutations.selection_set.items {
+                    match set {
+                        Selection::Field(field) => {
+                            let name = field.name.clone();
+                            let mutation_result = self
+                                .mutations
+                                .as_ref()
+                                .ok_or(Error::MutationSchemaNotDefined)?
+                                .get(&name)
+                                .ok_or(Error::NotFoundError(format!("Mutation api {}", &name)))?
+                                .execute(context.clone(), field)?;
+                            result.insert(name, mutation_result);
+                        }
+                        Selection::FragmentSpread(_) => {
+                            return Err(Error::UnSupportedYetError(
+                                "'FragmentSpread' in mutation(selection sets)".to_string(),
+                            ))
+                        }
+                        Selection::InlineFragment(_) => {
+                            return Err(Error::UnSupportedYetError(
+                                "'InlineFragment' in mutation(selection sets)".to_string(),
+                            ))
+                        }
+                    }
+                }
+                return Ok(DataValue::Object(result));
+            }
             OperationDefinition::Subscription(_sub) => Err(Error::UnSupportedYetError(
                 "'Subscription' in schema request".to_string(),
             )),

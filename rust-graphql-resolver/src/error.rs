@@ -12,6 +12,8 @@ pub enum Error {
     DataTypeMisMatchError(String, String),
     #[error("Missing reference custom type")]
     MissingReferenceCustomTypeError,
+    #[error("Mutation schema not defined")]
+    MutationSchemaNotDefined,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
