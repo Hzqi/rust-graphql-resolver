@@ -275,7 +275,23 @@ fn query() {
         ),
         ("col2".to_string(), DataValue::Int(1234)),
     ]));
-    let request1 = r#"{ fullObjects(condition: {}) { id str int float bool datetime color extra { col1 col2 } } }"#;
+    let request1 = r#"
+    { 
+        fullObjects(condition: {}) { 
+            id 
+            str 
+            int 
+            float 
+            bool 
+            datetime 
+            color 
+            extra { 
+                col1 
+                col2 
+            } 
+        } 
+    }
+    "#;
     let result1 = execute(context1, request1, &schema).unwrap();
     println!(
         "result: {}",
@@ -289,14 +305,40 @@ fn query() {
         ),
         ("col2".to_string(), DataValue::Int(1234)),
     ]));
-    let request2 = r#"{ fullObjects(condition: {color: Red}) { id str int float bool datetime color extra { col1 col2 } } }"#;
+    let request2 = r#"
+    { 
+        fullObjects(condition: {color: Red}) { 
+            id 
+            str 
+            int 
+            float 
+            bool 
+            datetime 
+            color 
+            extra { 
+                col1 
+                col2 
+            } 
+        } 
+    }
+    "#;
     let result2 = execute(context2, request2, &schema).unwrap();
     println!(
         "result: {}",
         serde_json::ser::to_string_pretty(&result2).unwrap()
     );
 
-    let request3 = r#"{ fullObjects(condition: {bool: true}) { id int float bool color } }"#;
+    let request3 = r#"
+    { 
+        fullObjects(condition: {bool: true}) { 
+            id 
+            int 
+            float 
+            bool 
+            color 
+        } 
+    }
+    "#;
     let result3 = execute(QLContext::default(), request3, &schema).unwrap();
     println!(
         "result: {}",

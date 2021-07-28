@@ -7,10 +7,11 @@ For two reasons:
 2. you want to build graphql on runtime.
 
 But it has many todos:
-- [ ] Mutation (that should be easy as query)
+- [x] Mutation (that should be easy as query)
 - [ ] Subscrition
 - [ ] Document validation
 - [ ] Web Tools (docs, graphiql)
+- [ ] fully tests
 - [ ] async (this shouldn't be difficult)
 
 ## Example

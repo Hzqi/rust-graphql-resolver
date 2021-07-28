@@ -129,6 +129,7 @@ impl CustomType {
     ) -> Result<DataValue> {
         match data {
             DataValue::Object(map) => self.execute_object(context, parameter.selection_sets, map),
+            DataValue::Null => Ok(DataValue::Null),
             _ => Err(Error::DataTypeMisMatchError(
                 "Object(CustomType)".to_string(),
                 "NonObject".to_string(),

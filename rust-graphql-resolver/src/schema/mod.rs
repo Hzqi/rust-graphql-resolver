@@ -88,12 +88,17 @@ impl Schema {
                     match set {
                         Selection::Field(field) => {
                             let name = field.name.clone();
+                            let insert_key = if let Some(alias) = field.alias.clone() {
+                                alias
+                            } else {
+                                name.clone()
+                            };
                             let query_result = self
                                 .queries
                                 .get(&name)
                                 .ok_or(Error::NotFoundError(format!("Query api {}", &name)))?
                                 .execute(context.clone(), field)?;
-                            result.insert(name, query_result);
+                            result.insert(insert_key, query_result);
                         }
                         Selection::FragmentSpread(_) => {
                             return Err(Error::UnSupportedYetError(
@@ -115,12 +120,17 @@ impl Schema {
                     match set {
                         Selection::Field(field) => {
                             let name = field.name.clone();
+                            let insert_key = if let Some(alias) = field.alias.clone() {
+                                alias
+                            } else {
+                                name.clone()
+                            };
                             let query_result = self
                                 .queries
                                 .get(&name)
                                 .ok_or(Error::NotFoundError(format!("Query api {}", &name)))?
                                 .execute(context.clone(), field)?;
-                            result.insert(name, query_result);
+                            result.insert(insert_key, query_result);
                         }
                         Selection::FragmentSpread(_) => {
                             return Err(Error::UnSupportedYetError(
@@ -142,6 +152,11 @@ impl Schema {
                     match set {
                         Selection::Field(field) => {
                             let name = field.name.clone();
+                            let insert_key = if let Some(alias) = field.alias.clone() {
+                                alias
+                            } else {
+                                name.clone()
+                            };
                             let mutation_result = self
                                 .mutations
                                 .as_ref()
@@ -149,7 +164,7 @@ impl Schema {
                                 .get(&name)
                                 .ok_or(Error::NotFoundError(format!("Mutation api {}", &name)))?
                                 .execute(context.clone(), field)?;
-                            result.insert(name, mutation_result);
+                            result.insert(insert_key, mutation_result);
                         }
                         Selection::FragmentSpread(_) => {
                             return Err(Error::UnSupportedYetError(

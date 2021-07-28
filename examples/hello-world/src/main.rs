@@ -58,7 +58,14 @@ fn main() {
         objects: HashMap::default(),
     };
     {
-        let request = r#"{ foo { name, foo } }"#;
+        let request = r#"
+        { 
+            foo { 
+                name, 
+                foo 
+            } 
+        }
+        "#;
         let result = execute(QLContext::default(), request, &schema).unwrap();
         println!(
             "result: {}",
