@@ -13,6 +13,7 @@ But it has many todos:
 - [ ] Web Tools (docs, graphiql)
 - [ ] fully tests
 - [ ] async (this shouldn't be difficult)
+- [ ] add `From` and `Into` trait for Resolve functions
 
 ## Example
 
