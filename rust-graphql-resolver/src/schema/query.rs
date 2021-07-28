@@ -27,7 +27,10 @@ impl Query {
             arguments: ArgumentValueMap::from(field.arguments),
             selection_sets: field.selection_set.items,
         };
-        let resolve_result = self.resolve.call(context.clone(), parameter.clone())?;
+        let resolve_result = self
+            .resolve
+            .call(context.clone(), parameter.clone())?
+            .to_data_value();
         self.field_type.execute(context, parameter, resolve_result)
     }
 }

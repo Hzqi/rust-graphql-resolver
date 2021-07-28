@@ -15,7 +15,7 @@ use rust_graphql_resolver::{
             QLEnumValue, QLInput,
         },
         query::{Query, QueryMap},
-        resolve::{ApiResolveFunc, DefaultFieldResolveFunc, QLApiParam, QLContext},
+        resolve::{ApiResolveFunc, BoxedValue, DefaultFieldResolveFunc, QLApiParam, QLContext},
         Schema,
     },
     value::DataValue,
@@ -92,7 +92,7 @@ fn init_schema(datas: Vec<DataValue>) -> Schema {
                         |context: HashMap<String, DataValue>,
                          _source,
                          _parameter|
-                         -> Result<DataValue> {
+                         -> Result<BoxedValue> {
                             println!("[debug] resolving extra...");
                             let col1 = match context.get(&"col1".to_string()) {
                                 Some(r @ DataValue::String(_)) => r.to_owned(),
@@ -102,10 +102,9 @@ fn init_schema(datas: Vec<DataValue>) -> Schema {
                                 Some(r @ DataValue::Int(_)) => r.to_owned(),
                                 _ => DataValue::Null,
                             };
-                            Ok(DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-                                ("col1".to_string(), col1),
-                                ("col2".to_string(), col2),
-                            ]))))
+                            Ok(DataValue::boxed_object(BTreeMap::from_iter(IntoIter::new(
+                                [("col1".to_string(), col1), ("col2".to_string(), col2)],
+                            ))))
                         },
                     ),
                 },
@@ -162,7 +161,7 @@ fn init_schema(datas: Vec<DataValue>) -> Schema {
 fn create_func(datas: Vec<DataValue>) -> Box<dyn ApiResolveFunc> {
     println!("[debug] invoke once...");
     Box::new(
-        move |_context, parameter: QLApiParam| -> Result<DataValue> {
+        move |_context, parameter: QLApiParam| -> Result<BoxedValue> {
             println!("[debug] invoke every times...");
             let condition = parameter
                 .arguments
@@ -179,7 +178,7 @@ fn create_func(datas: Vec<DataValue>) -> Box<dyn ApiResolveFunc> {
     )
 }
 
-fn query_data(datas: Vec<DataValue>, map: &BTreeMap<String, DataValue>) -> Result<DataValue> {
+fn query_data(datas: Vec<DataValue>, map: &BTreeMap<String, DataValue>) -> Result<BoxedValue> {
     let target = datas
         .iter()
         .cloned()
@@ -211,7 +210,7 @@ fn query_data(datas: Vec<DataValue>, map: &BTreeMap<String, DataValue>) -> Resul
             }
         })
         .collect();
-    Ok(DataValue::List(target))
+    Ok(DataValue::boxed_list(target))
 }
 
 fn init_data() -> Vec<DataValue> {

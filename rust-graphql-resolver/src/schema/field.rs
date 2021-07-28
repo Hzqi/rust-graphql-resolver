@@ -202,7 +202,8 @@ impl Field {
         };
         let resolve_result = self
             .resolve
-            .call(context.clone(), source, parameter.clone())?;
+            .call(context.clone(), source, parameter.clone())?
+            .to_data_value();
         self.field_type.execute(context, parameter, resolve_result)
     }
 

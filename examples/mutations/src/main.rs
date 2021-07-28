@@ -13,7 +13,7 @@ use rust_graphql_resolver::{
         field::{CustomType, Field, FieldType, InputFieldType, StaticType},
         mutation::Mutation,
         query::{Query, QueryMap},
-        resolve::{ApiResolveFunc, QLApiParam, QLContext},
+        resolve::{ApiResolveFunc, BoxedValue, QLApiParam, QLContext},
         Schema,
     },
     value::DataValue,
@@ -86,7 +86,7 @@ fn init_schema(datas: Storage) -> Schema {
 fn create_query_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
     println!("[debug] query api building...");
     let result = Box::new(
-        move |_context, parameter: QLApiParam| -> Result<DataValue> {
+        move |_context, parameter: QLApiParam| -> Result<BoxedValue> {
             let dv = parameter
                 .arguments
                 .get(&"id".to_string())
@@ -101,8 +101,8 @@ fn create_query_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
                 }
             };
             match datas.borrow().get(id) {
-                Some(res) => Ok(res.to_owned()),
-                None => Ok(DataValue::Null),
+                Some(res) => Ok(Box::new(res.to_owned())),
+                None => Ok(Box::new(DataValue::Null)),
             }
         },
     );
@@ -113,7 +113,7 @@ fn create_query_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
 fn create_mutation_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
     println!("[debug] muttaion api building...");
     let result = Box::new(
-        move |_context, parameter: QLApiParam| -> Result<DataValue> {
+        move |_context, parameter: QLApiParam| -> Result<BoxedValue> {
             let id = parameter
                 .arguments
                 .get(&"id".to_string())
@@ -129,7 +129,7 @@ fn create_mutation_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
                         ("foo".to_string(), DataValue::String(f.to_owned())),
                     ])));
                     datas.borrow_mut().insert(i.to_owned(), v.clone());
-                    Ok(v)
+                    Ok(Box::new(v))
                 }
                 _ => Err(Error::DataTypeMisMatchError(
                     "(ID, String)".to_string(),

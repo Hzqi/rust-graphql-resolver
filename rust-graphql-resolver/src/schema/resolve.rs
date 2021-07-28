@@ -5,8 +5,10 @@ use gurkle_parser::query::{Selection, Value as ParserValue};
 
 use crate::{
     error::{Error, Result},
-    value::DataValue,
+    value::{DataValue, ToDataValue},
 };
+
+pub type BoxedValue = Box<dyn ToDataValue>;
 
 /// ApiResolveFunc
 ///
@@ -14,15 +16,15 @@ use crate::{
 /// * context: storage and transfer key-value through invoking nested
 /// * parameter: arguments and selection_sets from graphql request
 pub trait ApiResolveFunc: DynClone {
-    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<DataValue>;
+    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<BoxedValue>;
 }
 clone_trait_object!(ApiResolveFunc);
 
 impl<F> ApiResolveFunc for F
 where
-    F: Fn(QLContext, QLApiParam) -> Result<DataValue> + Clone,
+    F: Fn(QLContext, QLApiParam) -> Result<BoxedValue> + Clone,
 {
-    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<DataValue> {
+    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<BoxedValue> {
         self(context, parameter)
     }
 }
@@ -69,20 +71,20 @@ pub trait FieldResolveFunc: DynClone {
         context: QLContext,
         source: DataValue,
         parameter: QLApiParam,
-    ) -> Result<DataValue>;
+    ) -> Result<BoxedValue>;
 }
 clone_trait_object!(FieldResolveFunc);
 
 impl<F> FieldResolveFunc for F
 where
-    F: Fn(QLContext, DataValue, QLApiParam) -> Result<DataValue> + Clone,
+    F: Fn(QLContext, DataValue, QLApiParam) -> Result<BoxedValue> + Clone,
 {
     fn call(
         &self,
         context: QLContext,
         source: DataValue,
         parameter: QLApiParam,
-    ) -> Result<DataValue> {
+    ) -> Result<BoxedValue> {
         self(context, source, parameter)
     }
 }
@@ -97,7 +99,7 @@ impl FieldResolveFunc for DefaultFieldResolveFunc {
         _context: QLContext,
         _source: DataValue,
         _parameter: QLApiParam,
-    ) -> Result<DataValue> {
+    ) -> Result<BoxedValue> {
         Err(Error::DefaultResolveError)
     }
 }

@@ -4,7 +4,7 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Serialize,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use gurkle_parser::query::Value as ParserValue;
 
@@ -19,6 +19,36 @@ pub enum DataValue {
     Null,
     List(Vec<DataValue>),
     Object(BTreeMap<String, DataValue>),
+}
+
+impl DataValue {
+    pub fn boxed_id(id: String) -> Box<DataValue> {
+        Box::new(Self::ID(id))
+    }
+    pub fn boxed_string(s: String) -> Box<DataValue> {
+        Box::new(Self::String(s))
+    }
+    pub fn boxed_int(i: i64) -> Box<DataValue> {
+        Box::new(Self::Int(i))
+    }
+    pub fn boxed_float(f: f64) -> Box<DataValue> {
+        Box::new(Self::Float(f))
+    }
+    pub fn boxed_bool(b: bool) -> Box<DataValue> {
+        Box::new(Self::Boolean(b))
+    }
+    pub fn boxed_null() -> Box<DataValue> {
+        Box::new(Self::Null)
+    }
+    pub fn boxed_datetime(dt: DateTime<Utc>) -> Box<DataValue> {
+        Box::new(Self::DateTime(dt))
+    }
+    pub fn boxed_list(list: Vec<DataValue>) -> Box<DataValue> {
+        Box::new(Self::List(list))
+    }
+    pub fn boxed_object(map: BTreeMap<String, DataValue>) -> Box<DataValue> {
+        Box::new(Self::Object(map))
+    }
 }
 
 // From transform from parser value
@@ -75,5 +105,127 @@ impl Serialize for DataValue {
                 map.end()
             }
         }
+    }
+}
+
+// For custom data struct to transform to DataValue
+pub trait ToDataValue {
+    fn to_data_value(&self) -> DataValue;
+}
+
+impl ToDataValue for DataValue {
+    fn to_data_value(&self) -> DataValue {
+        self.clone()
+    }
+}
+
+impl ToDataValue for String {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::String(self.to_owned())
+    }
+}
+
+impl ToDataValue for dyn ToString {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::String(self.to_string())
+    }
+}
+
+impl ToDataValue for i64 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned())
+    }
+}
+
+impl ToDataValue for i32 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned() as i64)
+    }
+}
+
+impl ToDataValue for i16 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned() as i64)
+    }
+}
+
+impl ToDataValue for i8 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned() as i64)
+    }
+}
+
+impl ToDataValue for u64 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned() as i64)
+    }
+}
+
+impl ToDataValue for u32 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned() as i64)
+    }
+}
+
+impl ToDataValue for u16 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned() as i64)
+    }
+}
+
+impl ToDataValue for u8 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Int(self.to_owned() as i64)
+    }
+}
+
+impl ToDataValue for f64 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Float(self.to_owned() as f64)
+    }
+}
+
+impl ToDataValue for f32 {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Float(self.to_owned() as f64)
+    }
+}
+
+impl ToDataValue for bool {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Boolean(self.to_owned())
+    }
+}
+
+impl ToDataValue for DateTime<Utc> {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::DateTime(self.to_owned())
+    }
+}
+
+impl<K: ToString, V: ToDataValue> ToDataValue for HashMap<K, V> {
+    fn to_data_value(&self) -> DataValue {
+        let btree = self
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_data_value()))
+            .collect();
+        DataValue::Object(btree)
+    }
+}
+
+impl<K: ToString, V: ToDataValue> ToDataValue for BTreeMap<K, V> {
+    fn to_data_value(&self) -> DataValue {
+        let btree = self
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_data_value()))
+            .collect();
+        DataValue::Object(btree)
+    }
+}
+
+impl<T: ToDataValue> ToDataValue for Vec<T> {
+    fn to_data_value(&self) -> DataValue {
+        let list = self.into_iter().map(|v| v.to_data_value()).collect();
+        DataValue::List(list)
     }
 }

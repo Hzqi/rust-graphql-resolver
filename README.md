@@ -13,7 +13,8 @@ But it has many todos:
 - [ ] Web Tools (docs, graphiql)
 - [ ] fully tests
 - [ ] async (this shouldn't be difficult)
-- [ ] add `From` and `Into` trait for Resolve functions
+- [x] ~~add `From` and `Into` trait for Resolve functions~~ (Only implement `ToDataValue` trait for user custom resolve functions)
+  - [ ] derive macro for `ToDataValue`, to decrease definition codes
 
 ## Example
 
@@ -32,11 +33,26 @@ use rust_graphql_resolver::{
     schema::{
         field::{ArgumentMap, CustomType, Field, FieldType},
         query::{Query, QueryMap},
-        resolve::QLContext,
+        resolve::{BoxedValue, QLContext},
         Schema,
     },
-    value::DataValue,
+    value::{DataValue, ToDataValue},
 };
+
+#[derive(Debug, Clone)]
+struct HelloWorld {
+    hello: String,
+    greeting: String,
+}
+
+impl ToDataValue for HelloWorld {
+    fn to_data_value(&self) -> DataValue {
+        DataValue::Object(BTreeMap::from_iter(IntoIter::new([
+            ("hello".to_string(), self.hello.to_data_value()),
+            ("greeting".to_string(), self.greeting.to_data_value()),
+        ])))
+    }
+}
 
 fn main() {
     let schema = Schema {
@@ -44,34 +60,28 @@ fn main() {
         subscritions: None,
         mutations: None,
         queries: QueryMap::from_iter(IntoIter::new([(
-            // query: foo { name, foo }
-            "foo".to_string(),
+            // query: helloWorld { hello, greeting }
+            "helloWorld".to_string(),
             Query {
                 field_type: FieldType::CustomType(CustomType {
-                    name: "Foo".to_string(),
+                    name: "helloWorld".to_string(),
                     description: String::default(),
-                    // fields: {name, foo}
+                    // fields: { hello, greeting }
                     fields: BTreeMap::from_iter(IntoIter::new([
-                        // string field: "name"
-                        ("name".to_string(), Field::basic_str()),
-                        // string field: "foo"
-                        ("foo".to_string(), Field::basic_str()),
+                        // string field: "hello"
+                        ("hello".to_string(), Field::basic_str()),
+                        // string field: "greeting"
+                        ("greeting".to_string(), Field::basic_str()),
                     ])),
                 }),
                 arguments: ArgumentMap::default(),
                 description: String::default(),
-                resolve: Box::new(|_context, _param| -> Result<DataValue> {
+                resolve: Box::new(|_context, _param| -> Result<BoxedValue> {
                     // result: { "name": "foo_name", "foo": "hello world" }
-                    Ok(DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-                        (
-                            "name".to_string(),
-                            DataValue::String("foo_name".to_string()),
-                        ),
-                        (
-                            "foo".to_string(),
-                            DataValue::String("hello world".to_string()),
-                        ),
-                    ]))))
+                    Ok(Box::new(HelloWorld {
+                        hello: "rust".to_string(),
+                        greeting: "graphql-resolver".to_string(),
+                    }))
                 }),
             },
         )])),
@@ -80,7 +90,14 @@ fn main() {
         objects: HashMap::default(),
     };
     {
-        let request = r#"{ foo { name, foo } }"#;
+        let request = r#"
+        { 
+            helloWorld { 
+                hello, 
+                greeting 
+            } 
+        }
+        "#;
         let result = execute(QLContext::default(), request, &schema).unwrap();
         println!(
             "result: {}",
