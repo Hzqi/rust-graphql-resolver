@@ -7,12 +7,16 @@ use std::{
 };
 
 use rust_graphql_resolver::{
-    error::{Error, Result},
+    builder::{
+        field::CustomTypeBuilder, mutation::MutationBuilder, query::QueryBuilder,
+        schema::SchemaBuilder,
+    },
+    error::{BuildResult, Error, Result},
     execute,
     schema::{
-        field::{CustomType, Field, FieldType, InputFieldType, StaticType},
+        field::{Field, InputFieldType},
         mutation::Mutation,
-        query::{Query, QueryMap},
+        query::Query,
         resolve::{ApiResolveFunc, BoxedValue, QLApiParam, QLContext},
         Schema,
     },
@@ -21,66 +25,34 @@ use rust_graphql_resolver::{
 
 type Storage = Rc<RefCell<HashMap<String, DataValue>>>;
 
-fn init_schema(datas: Storage) -> Schema {
-    let mut schema = Schema {
-        id: "mutations_schema".to_string(),
-        queries: QueryMap::new(),
-        mutations: None,
-        subscritions: None,
-        objects: HashMap::default(),
-        enums: HashMap::default(),
-        inputs: HashMap::default(),
-    };
-
-    let sample_object = CustomType {
-        name: "SampleObject".to_string(),
-        description: String::default(),
-        fields: BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), Field::basic_id()),
-            ("foo".to_string(), Field::basic_str()),
-        ])),
-    };
-    schema.objects.insert(
-        "SampleObject".to_string(),
-        Rc::new(RefCell::new(sample_object)),
-    );
-
-    let query_by_id = Query {
-        field_type: FieldType::ReferenceCustom(Rc::downgrade(
-            schema.objects.get("SampleObject").unwrap(),
-        )),
-        arguments: BTreeMap::from_iter(IntoIter::new([(
-            "id".to_string(),
-            InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::String)),
-        )])),
-        description: "query a data by id".to_string(),
-        resolve: create_query_func(datas.clone()),
-    };
-    schema.queries.insert("sample".to_string(), query_by_id);
-
-    let add_data_mutation = Mutation {
-        field_type: FieldType::ReferenceCustom(Rc::downgrade(
-            schema.objects.get("SampleObject").unwrap(),
-        )),
-        arguments: BTreeMap::from_iter(IntoIter::new([
-            (
-                "id".to_string(),
-                InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::String)),
-            ),
-            (
-                "foo".to_string(),
-                InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::String)),
-            ),
-        ])),
-        description: "add a new data".to_string(),
-        resolve: create_mutation_func(datas),
-    };
-
-    let mut mutations = HashMap::new();
-    mutations.insert("addSample".to_string(), add_data_mutation);
-    schema.mutations = Some(mutations);
-
-    schema
+fn build_schema(datas: Storage) -> BuildResult<Schema> {
+    SchemaBuilder::new("mutations_schema")
+        .add_object(
+            CustomTypeBuilder::new("SampleObject")
+                .add_field("id", Field::basic_id())
+                .add_field("foo", Field::basic_str())
+                .build(),
+        )
+        .add_query("sample", |sch| -> BuildResult<Query> {
+            let field_type = sch.get_object_type("SampleObject")?;
+            QueryBuilder::new()
+                .set_type(field_type)
+                .set_description("query a data by id")
+                .add_argument("id", InputFieldType::basic_id())
+                .set_resolve(create_query_func(datas.clone()))
+                .build()
+        })?
+        .add_mutation("addSample", |sch| -> BuildResult<Mutation> {
+            let field_type = sch.get_object_type("SampleObject")?;
+            MutationBuilder::new()
+                .set_type(field_type)
+                .set_description("add a new data")
+                .add_argument("id", InputFieldType::basic_id())
+                .add_argument("foo", InputFieldType::basic_str())
+                .set_resolve(create_mutation_func(datas.clone()))
+                .build()
+        })?
+        .build()
 }
 
 fn create_query_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
@@ -144,7 +116,7 @@ fn create_mutation_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
 
 fn mutation_and_query() {
     let datas = Rc::new(RefCell::new(HashMap::new()));
-    let schema = init_schema(datas);
+    let schema = build_schema(datas).unwrap();
     let context = QLContext::default();
 
     let request1 = r#"

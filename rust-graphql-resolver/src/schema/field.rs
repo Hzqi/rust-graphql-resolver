@@ -132,7 +132,7 @@ impl CustomType {
             DataValue::Null => Ok(DataValue::Null),
             _ => Err(Error::DataTypeMisMatchError(
                 "Object(CustomType)".to_string(),
-                "NonObject".to_string(),
+                data.get_type_name(),
             )),
         }
     }
@@ -205,6 +205,36 @@ impl Field {
             .call(context.clone(), source, parameter.clone())?
             .to_data_value();
         self.field_type.execute(context, parameter, resolve_result)
+    }
+
+    pub fn new(
+        name: &str,
+        field_type: FieldType,
+        description: &str,
+        resolve: Box<dyn FieldResolveFunc>,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            field_type,
+            description: description.to_string(),
+            resolve,
+        }
+    }
+
+    pub fn simple(name: &str, field_type: FieldType) -> Self {
+        Self::new(name, field_type, "", Box::new(DefaultFieldResolveFunc))
+    }
+
+    pub fn simple_with_description(name: &str, field_type: FieldType, desc: &str) -> Self {
+        Self::new(name, field_type, desc, Box::new(DefaultFieldResolveFunc))
+    }
+
+    pub fn simple_with_resolve(
+        name: &str,
+        field_type: FieldType,
+        resolve: Box<dyn FieldResolveFunc>,
+    ) -> Self {
+        Self::new(name, field_type, "", resolve)
     }
 
     /// create a basic id field without resolve
@@ -320,11 +350,27 @@ pub struct InputField {
 }
 
 impl InputField {
+    pub fn new(name: &str, field_type: InputFieldType, description: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            field_type,
+            description: description.to_string(),
+        }
+    }
+
+    pub fn simple(name: &str, field_type: InputFieldType) -> Self {
+        Self::new(name, field_type, "")
+    }
+
+    pub fn simple_with_description(name: &str, field_type: InputFieldType, desc: &str) -> Self {
+        Self::new(name, field_type, desc)
+    }
+
     /// create a basic id field for input object
     pub fn basic_id() -> Self {
         Self {
             name: String::default(),
-            field_type: InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::ID)),
+            field_type: InputFieldType::StaticType(StaticType::ID),
             description: String::default(),
         }
     }
@@ -333,7 +379,7 @@ impl InputField {
     pub fn basic_int() -> Self {
         Self {
             name: String::default(),
-            field_type: InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::Int)),
+            field_type: InputFieldType::StaticType(StaticType::Int),
             description: String::default(),
         }
     }
@@ -342,7 +388,7 @@ impl InputField {
     pub fn basic_float() -> Self {
         Self {
             name: String::default(),
-            field_type: InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::Float)),
+            field_type: InputFieldType::StaticType(StaticType::Float),
             description: String::default(),
         }
     }
@@ -351,7 +397,7 @@ impl InputField {
     pub fn basic_str() -> Self {
         Self {
             name: String::default(),
-            field_type: InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::String)),
+            field_type: InputFieldType::StaticType(StaticType::String),
             description: String::default(),
         }
     }
@@ -360,7 +406,7 @@ impl InputField {
     pub fn basic_bool() -> Self {
         Self {
             name: String::default(),
-            field_type: InputFieldType::ObjectFieldType(FieldType::StaticType(StaticType::Boolean)),
+            field_type: InputFieldType::StaticType(StaticType::Boolean),
             description: String::default(),
         }
     }
@@ -369,9 +415,7 @@ impl InputField {
     pub fn basic_datetime() -> Self {
         Self {
             name: String::default(),
-            field_type: InputFieldType::ObjectFieldType(FieldType::StaticType(
-                StaticType::DateTime,
-            )),
+            field_type: InputFieldType::StaticType(StaticType::DateTime),
             description: String::default(),
         }
     }
@@ -380,9 +424,45 @@ impl InputField {
 /// InputFieldType
 #[derive(Debug, Clone)]
 pub enum InputFieldType {
-    ObjectFieldType(FieldType),
+    StaticType(StaticType),
+    NonNullType(Box<InputFieldType>),
+    List(Box<InputFieldType>),
+    Enum(QLEnum),
+    ReferenceEnum(Rc<QLEnum>),
     QLInput(QLInput),
     ReferenceInput(Weak<RefCell<QLInput>>),
+}
+
+impl InputFieldType {
+    /// create a basic id field for input object
+    pub fn basic_id() -> Self {
+        Self::StaticType(StaticType::ID)
+    }
+
+    /// create a basic int field for input object
+    pub fn basic_int() -> Self {
+        Self::StaticType(StaticType::Int)
+    }
+
+    /// create a basic float field for input object
+    pub fn basic_float() -> Self {
+        Self::StaticType(StaticType::Float)
+    }
+
+    /// create a basic string field for input object
+    pub fn basic_str() -> Self {
+        Self::StaticType(StaticType::String)
+    }
+
+    /// create a basic bool field for input object
+    pub fn basic_bool() -> Self {
+        Self::StaticType(StaticType::Boolean)
+    }
+
+    /// create a basic datetime field for input object
+    pub fn basic_datetime() -> Self {
+        Self::StaticType(StaticType::DateTime)
+    }
 }
 
 /// ArgumentMap

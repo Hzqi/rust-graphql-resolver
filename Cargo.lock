@@ -150,6 +150,7 @@ dependencies = [
 name = "queries"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "rust-graphql-resolver",
  "serde",
  "serde_json",

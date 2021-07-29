@@ -1,164 +1,153 @@
 use std::{
     array::IntoIter,
-    cell::RefCell,
     collections::{BTreeMap, HashMap},
     iter::FromIterator,
-    rc::Rc,
 };
 
+use chrono::{DateTime, Utc};
 use rust_graphql_resolver::{
-    error::{Error, Result},
+    builder::{
+        field::{CustomTypeBuilder, QLEnumBuilder, QLInputBuilder},
+        query::QueryBuilder,
+        schema::SchemaBuilder,
+        value::DataValueObjectBuilder,
+    },
+    error::{BuildResult, Error, Result},
     execute,
     schema::{
-        field::{
-            ArgumentMap, CustomType, Field, FieldType, InputField, InputFieldType, QLEnum,
-            QLEnumValue, QLInput,
-        },
-        query::{Query, QueryMap},
-        resolve::{ApiResolveFunc, BoxedValue, DefaultFieldResolveFunc, QLApiParam, QLContext},
+        field::{CustomType, Field, FieldType, InputField, QLInput},
+        query::Query,
+        resolve::{ApiResolveFunc, BoxedValue, FieldResolveFunc, QLApiParam, QLContext},
         Schema,
     },
-    value::DataValue,
+    value::{DataValue, ToDataValue},
 };
 
-fn init_schema(datas: Vec<DataValue>) -> Schema {
-    let mut schema = Schema {
-        id: "queries_schema".to_string(),
-        subscritions: None,
-        mutations: None,
-        queries: QueryMap::new(),
-        objects: HashMap::new(),
-        enums: HashMap::new(),
-        inputs: HashMap::new(),
-    };
-
-    // Color Enum
-    let color = QLEnum {
-        name: "Color".to_string(),
-        description: String::default(),
-        values: vec![
-            QLEnumValue {
-                value: "Red".to_string(),
-                description: String::default(),
-            },
-            QLEnumValue {
-                value: "Yellow".to_string(),
-                description: String::default(),
-            },
-            QLEnumValue {
-                value: "Green".to_string(),
-                description: String::default(),
-            },
-        ],
-    };
-    schema.enums.insert("Color".to_string(), Rc::new(color));
-
-    // FullObject
-    let full_object = CustomType {
-        name: "FullObject".to_string(),
-        description: String::default(),
-        fields: BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), Field::basic_id()),
-            ("str".to_string(), Field::basic_str()),
-            ("int".to_string(), Field::basic_int()),
-            ("float".to_string(), Field::basic_float()),
-            ("bool".to_string(), Field::basic_bool()),
-            ("datetime".to_string(), Field::basic_datetime()),
-            (
-                "color".to_string(),
-                Field {
-                    name: "color".to_string(),
-                    field_type: FieldType::ReferenceEnum(
-                        schema.enums.get(&"Color".to_string()).unwrap().clone(),
-                    ),
-                    description: String::default(),
-                    resolve: Box::new(DefaultFieldResolveFunc),
-                },
-            ),
-            (
-                "extra".to_string(),
-                Field {
-                    name: "extra".to_string(),
-                    description: String::default(),
-                    field_type: FieldType::CustomType(CustomType {
-                        name: "ExtraObject".to_string(),
-                        description: String::default(),
-                        fields: BTreeMap::from_iter(IntoIter::new([
-                            ("col1".to_string(), Field::basic_str()),
-                            ("col2".to_string(), Field::basic_int()),
-                        ])),
-                    }),
-                    resolve: Box::new(
-                        |context: HashMap<String, DataValue>,
-                         _source,
-                         _parameter|
-                         -> Result<BoxedValue> {
-                            println!("[debug] resolving extra...");
-                            let col1 = match context.get(&"col1".to_string()) {
-                                Some(r @ DataValue::String(_)) => r.to_owned(),
-                                _ => DataValue::Null,
-                            };
-                            let col2 = match context.get(&"col2".to_string()) {
-                                Some(r @ DataValue::Int(_)) => r.to_owned(),
-                                _ => DataValue::Null,
-                            };
-                            Ok(DataValue::boxed_object(BTreeMap::from_iter(IntoIter::new(
-                                [("col1".to_string(), col1), ("col2".to_string(), col2)],
-                            ))))
-                        },
-                    ),
-                },
-            ),
-        ])),
-    };
-    schema
-        .objects
-        .insert("FullObject".to_string(), Rc::new(RefCell::new(full_object)));
-
-    // SearchFullObjectInput
-    let search_full_object_input = QLInput {
-        name: "SearchFullObjectInput".to_string(),
-        description: String::default(),
-        fields: BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), InputField::basic_id()),
-            ("str".to_string(), InputField::basic_str()),
-            ("int".to_string(), InputField::basic_int()),
-            ("float".to_string(), InputField::basic_float()),
-            ("bool".to_string(), InputField::basic_bool()),
-            ("datetime".to_string(), InputField::basic_datetime()),
-            (
-                "color".to_string(),
-                InputField {
-                    name: "color".to_string(),
-                    field_type: InputFieldType::ObjectFieldType(FieldType::ReferenceEnum(
-                        schema.enums.get(&"Color".to_string()).unwrap().clone(),
-                    )),
-                    description: String::default(),
-                },
-            ),
-        ])),
-    };
-    schema.inputs.insert(
-        "SearchFullObjectInput".to_string(),
-        Rc::new(RefCell::new(search_full_object_input)),
-    );
-
-    let query_full_object_datas = Query {
-        field_type: FieldType::List(Box::new(FieldType::ReferenceCustom(Rc::downgrade(
-            schema.objects.get(&"FullObject".to_string()).unwrap(),
-        )))),
-        arguments: ArgumentMap::default(),
-        description: String::default(),
-        resolve: create_func(datas.clone()),
-    };
-    schema
-        .queries
-        .insert("fullObjects".to_string(), query_full_object_datas);
-
-    schema
+#[derive(Debug, Clone)]
+struct FullObject {
+    id: String,
+    str_value: String,
+    int_value: i64,
+    float_value: f64,
+    bool_value: bool,
+    datetime: DateTime<Utc>,
+    color: String,
 }
 
-fn create_func(datas: Vec<DataValue>) -> Box<dyn ApiResolveFunc> {
+impl ToDataValue for FullObject {
+    fn to_data_value(&self) -> DataValue {
+        DataValueObjectBuilder::new()
+            .add_id_field("id", self.id.to_owned())
+            .add_str_field("str", self.str_value.to_owned())
+            .add_int_field("int", self.int_value.to_owned())
+            .add_float_field("float", self.float_value.to_owned())
+            .add_bool_field("bool", self.bool_value.to_owned())
+            .add_datetime_field("datetime", self.datetime.to_owned())
+            .add_str_field("color", self.color.to_owned())
+            .build()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ExtraObject {
+    col1: String,
+    col2: i64,
+}
+
+impl ToDataValue for ExtraObject {
+    fn to_data_value(&self) -> DataValue {
+        DataValueObjectBuilder::new()
+            .add_str_field("col1", self.col1.to_owned())
+            .add_int_field("col2", self.col2.to_owned())
+            .build()
+    }
+}
+
+fn build_schema(datas: Vec<FullObject>) -> BuildResult<Schema> {
+    SchemaBuilder::new("queries_schema")
+        .add_enum(
+            QLEnumBuilder::new("Color")
+                .add_value("Red")
+                .add_value("Yellow")
+                .add_value("Green")
+                .build(),
+        )
+        .add_object(
+            CustomTypeBuilder::new("ExtraObject")
+                .add_field("col1", Field::basic_str())
+                .add_field("col2", Field::basic_int())
+                .build(),
+        )
+        .add_object_with_status(|sch| -> BuildResult<CustomType> {
+            CustomTypeBuilder::new("FullObject")
+                .add_field("id", Field::basic_id())
+                .add_field("str", Field::basic_str())
+                .add_field("int", Field::basic_int())
+                .add_field("float", Field::basic_float())
+                .add_field("bool", Field::basic_bool())
+                .add_field("datetime", Field::basic_datetime())
+                .add_field("color", Field::simple("color", sch.get_enum_type("Color")?))
+                .add_field(
+                    "extra",
+                    Field::simple_with_resolve(
+                        "extra",
+                        sch.get_object_type("ExtraObject")?,
+                        extra_resolve(),
+                    ),
+                )
+                .build_ok()
+        })?
+        .add_input_object_with_status(|sch| -> BuildResult<QLInput> {
+            QLInputBuilder::new("SearchFullObjectInput")
+                .add_field("id", InputField::basic_id())
+                .add_field("str", InputField::basic_str())
+                .add_field("int", InputField::basic_int())
+                .add_field("float", InputField::basic_float())
+                .add_field("bool", InputField::basic_bool())
+                .add_field("datetime", InputField::basic_datetime())
+                .add_field(
+                    "color",
+                    InputField::simple("color", sch.get_enum_input_type("Color")?),
+                )
+                .build_ok()
+        })?
+        .add_query("fullObjects", |sch| -> BuildResult<Query> {
+            // Type: [FullObject!]
+            let field_type = FieldType::List(Box::new(FieldType::NonNullType(Box::new(
+                sch.get_object_type("FullObject")?,
+            ))));
+            QueryBuilder::new()
+                .set_type(field_type)
+                .set_resolve(create_func(datas.clone()))
+                .build()
+        })?
+        .build()
+}
+
+fn extra_resolve() -> Box<dyn FieldResolveFunc> {
+    Box::new(
+        |context: HashMap<String, DataValue>, _source, _parameter| -> Result<BoxedValue> {
+            println!("[debug] resolving extra...");
+
+            let col1 = match context.get(&"col1".to_string()) {
+                Some(r @ DataValue::String(_)) => r.to_owned(),
+                _ => DataValue::Null,
+            };
+            let col2 = match context.get(&"col2".to_string()) {
+                Some(r @ DataValue::Int(_)) => r.to_owned(),
+                _ => DataValue::Null,
+            };
+
+            Ok(DataValueObjectBuilder::new()
+                .add_any_field("col1", col1)
+                .add_any_field("col2", col2)
+                .build()
+                .to_boxed())
+        },
+    )
+}
+
+fn create_func(datas: Vec<FullObject>) -> Box<dyn ApiResolveFunc> {
     println!("[debug] invoke once...");
     Box::new(
         move |_context, parameter: QLApiParam| -> Result<BoxedValue> {
@@ -178,94 +167,89 @@ fn create_func(datas: Vec<DataValue>) -> Box<dyn ApiResolveFunc> {
     )
 }
 
-fn query_data(datas: Vec<DataValue>, map: &BTreeMap<String, DataValue>) -> Result<BoxedValue> {
-    let target = datas
+fn query_data(datas: Vec<FullObject>, map: &BTreeMap<String, DataValue>) -> Result<BoxedValue> {
+    let target: Vec<FullObject> = datas
         .iter()
         .cloned()
         .filter(|dv| -> bool {
-            match dv {
-                DataValue::Object(m) => {
-                    let mut p = true;
-                    if map.contains_key("id") {
-                        p = m.get("id").unwrap() == map.get("id").unwrap() && p;
-                    }
-                    if map.contains_key("str") {
-                        p = m.get("str").unwrap() == map.get("str").unwrap() && p;
-                    }
-                    if map.contains_key("int") {
-                        p = m.get("int").unwrap() == map.get("int").unwrap() && p;
-                    }
-                    if map.contains_key("float") {
-                        p = m.get("float").unwrap() == map.get("float").unwrap() && p;
-                    }
-                    if map.contains_key("bool") {
-                        p = m.get("bool").unwrap() == map.get("bool").unwrap() && p;
-                    }
-                    if map.contains_key("color") {
-                        p = m.get("color").unwrap() == map.get("color").unwrap() && p;
-                    }
-                    p
-                }
-                _ => false,
+            let mut p = true;
+            if let Some(DataValue::String(id)) = map.get("id") {
+                p = dv.id == id.to_owned() && p;
             }
+            if let Some(DataValue::String(s)) = map.get("str") {
+                p = dv.str_value == s.to_owned() && p;
+            }
+            if let Some(DataValue::Int(i)) = map.get("int") {
+                p = dv.int_value == i.to_owned() && p;
+            }
+            if let Some(DataValue::Float(f)) = map.get("flost") {
+                p = dv.float_value == f.to_owned() && p;
+            }
+            if let Some(DataValue::Boolean(b)) = map.get("bool") {
+                p = dv.bool_value == b.to_owned() && p;
+            }
+            if let Some(DataValue::String(color)) = map.get("color") {
+                p = dv.color == color.to_owned() && p;
+            }
+            p
         })
         .collect();
-    Ok(DataValue::boxed_list(target))
+    Ok(Box::new(target))
 }
 
-fn init_data() -> Vec<DataValue> {
+fn init_data() -> Vec<FullObject> {
     vec![
-        DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), DataValue::ID("1".to_string())),
-            ("str".to_string(), DataValue::String("str1".to_string())),
-            ("int".to_string(), DataValue::Int(1)),
-            ("float".to_string(), DataValue::Float(1.1)),
-            ("bool".to_string(), DataValue::Boolean(true)),
-            ("datetime".to_string(), DataValue::Null),
-            ("color".to_string(), DataValue::String("Red".to_string())),
-        ]))),
-        DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), DataValue::ID("2".to_string())),
-            ("str".to_string(), DataValue::String("str2".to_string())),
-            ("int".to_string(), DataValue::Int(2)),
-            ("float".to_string(), DataValue::Float(2.2)),
-            ("bool".to_string(), DataValue::Boolean(false)),
-            ("datetime".to_string(), DataValue::Null),
-            ("color".to_string(), DataValue::String("Yellow".to_string())),
-        ]))),
-        DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), DataValue::ID("3".to_string())),
-            ("str".to_string(), DataValue::String("str3".to_string())),
-            ("int".to_string(), DataValue::Int(3)),
-            ("float".to_string(), DataValue::Float(3.3)),
-            ("bool".to_string(), DataValue::Boolean(true)),
-            ("datetime".to_string(), DataValue::Null),
-            ("color".to_string(), DataValue::String("Green".to_string())),
-        ]))),
-        DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), DataValue::ID("4".to_string())),
-            ("str".to_string(), DataValue::String("str4".to_string())),
-            ("int".to_string(), DataValue::Int(4)),
-            ("float".to_string(), DataValue::Float(4.4)),
-            ("bool".to_string(), DataValue::Boolean(false)),
-            ("datetime".to_string(), DataValue::Null),
-            ("color".to_string(), DataValue::String("Red".to_string())),
-        ]))),
-        DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-            ("id".to_string(), DataValue::ID("5".to_string())),
-            ("str".to_string(), DataValue::String("str5".to_string())),
-            ("int".to_string(), DataValue::Int(5)),
-            ("float".to_string(), DataValue::Float(5.5)),
-            ("bool".to_string(), DataValue::Boolean(true)),
-            ("datetime".to_string(), DataValue::Null),
-            ("color".to_string(), DataValue::String("Yellow".to_string())),
-        ]))),
+        FullObject {
+            id: "1".to_string(),
+            str_value: "str1".to_string(),
+            int_value: 1,
+            float_value: 1.1,
+            bool_value: true,
+            datetime: Utc::now(),
+            color: "Red".to_string(),
+        },
+        FullObject {
+            id: "2".to_string(),
+            str_value: "str2".to_string(),
+            int_value: 2,
+            float_value: 2.2,
+            bool_value: false,
+            datetime: Utc::now(),
+            color: "Yellow".to_string(),
+        },
+        FullObject {
+            id: "3".to_string(),
+            str_value: "str3".to_string(),
+            int_value: 3,
+            float_value: 3.3,
+            bool_value: true,
+            datetime: Utc::now(),
+            color: "Green".to_string(),
+        },
+        FullObject {
+            id: "4".to_string(),
+            str_value: "str4".to_string(),
+            int_value: 4,
+            float_value: 4.4,
+            bool_value: false,
+            datetime: Utc::now(),
+            color: "Red".to_string(),
+        },
+        FullObject {
+            id: "5".to_string(),
+            str_value: "str5".to_string(),
+            int_value: 5,
+            float_value: 5.5,
+            bool_value: true,
+            datetime: Utc::now(),
+            color: "Yellow".to_string(),
+        },
     ]
 }
 
 fn query() {
     let datas = init_data();
-    let schema = init_schema(datas);
+    let schema = build_schema(datas).unwrap();
 
     let context1 = QLContext::from_iter(IntoIter::new([
         (

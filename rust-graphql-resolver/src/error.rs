@@ -17,3 +17,15 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(thiserror::Error, Debug)]
+pub enum BuildError {
+    #[error("No such object type {0}, set it first")]
+    NoSuchObjectType(String),
+    #[error("No such enum type {0}, set it first")]
+    NoSuchEnumType(String),
+    #[error("No such input type {0}, set it first")]
+    NoSuchInputType(String),
+}
+
+pub type BuildResult<T> = std::result::Result<T, BuildError>;

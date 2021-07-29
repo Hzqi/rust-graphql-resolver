@@ -29,6 +29,16 @@ where
     }
 }
 
+/// DefaultFieldResolveFunc return Err(...)
+#[derive(Debug, Clone)]
+pub struct DefaultApiResolveFunc;
+
+impl ApiResolveFunc for DefaultApiResolveFunc {
+    fn call(&self, _context: QLContext, _parameter: QLApiParam) -> Result<BoxedValue> {
+        Err(Error::DefaultResolveError)
+    }
+}
+
 /// QLContext
 pub type QLContext = HashMap<String, DataValue>;
 

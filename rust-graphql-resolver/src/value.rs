@@ -49,6 +49,30 @@ impl DataValue {
     pub fn boxed_object(map: BTreeMap<String, DataValue>) -> Box<DataValue> {
         Box::new(Self::Object(map))
     }
+
+    pub fn to_boxed(self) -> Box<DataValue> {
+        Box::new(self)
+    }
+
+    pub fn get_type_name(&self) -> String {
+        match self {
+            DataValue::ID(_) => "ID".to_string(),
+            DataValue::String(_) => "String".to_string(),
+            DataValue::Int(_) => "Int".to_string(),
+            DataValue::Float(_) => "Float".to_string(),
+            DataValue::Boolean(_) => "Boolean".to_string(),
+            DataValue::DateTime(_) => "DateTime".to_string(),
+            DataValue::Null => "Null".to_string(),
+            DataValue::List(item) => {
+                if let Some(head) = item.first() {
+                    format!("List({})", head.get_type_name())
+                } else {
+                    "List(...)".to_string()
+                }
+            }
+            DataValue::Object(_) => "Object(...)".to_string(),
+        }
+    }
 }
 
 // From transform from parser value
@@ -227,5 +251,14 @@ impl<T: ToDataValue> ToDataValue for Vec<T> {
     fn to_data_value(&self) -> DataValue {
         let list = self.into_iter().map(|v| v.to_data_value()).collect();
         DataValue::List(list)
+    }
+}
+
+impl<T: ToDataValue> ToDataValue for Option<T> {
+    fn to_data_value(&self) -> DataValue {
+        match self {
+            Some(v) => v.to_data_value(),
+            None => DataValue::Null,
+        }
     }
 }

@@ -1,3 +1,4 @@
+pub mod builder;
 pub mod error;
 pub mod schema;
 pub mod value;
