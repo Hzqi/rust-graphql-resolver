@@ -31,10 +31,10 @@ pub enum FieldType {
 }
 
 impl FieldType {
-    pub(crate) fn execute(
+    pub(crate) fn execute<'a, 'b>(
         &self,
-        context: QLContext,
-        parameter: QLApiParam,
+        context: &'a mut QLContext,
+        parameter: &'b QLApiParam,
         data: DataValue,
     ) -> Result<DataValue> {
         match self {
@@ -50,7 +50,7 @@ impl FieldType {
                 DataValue::List(data_list) => {
                     let mut result = vec![];
                     for dat in data_list {
-                        let item = list_type.execute(context.clone(), parameter.clone(), dat)?;
+                        let item = list_type.execute(context, parameter, dat)?;
                         result.push(item)
                     }
                     Ok(DataValue::List(result))
@@ -121,14 +121,14 @@ pub struct CustomType {
 }
 
 impl CustomType {
-    pub(crate) fn execute(
+    pub(crate) fn execute<'a, 'b>(
         &self,
-        context: QLContext,
-        parameter: QLApiParam,
+        context: &'a mut QLContext,
+        parameter: &'b QLApiParam,
         data: DataValue,
     ) -> Result<DataValue> {
         match data {
-            DataValue::Object(map) => self.execute_object(context, parameter.selection_sets, map),
+            DataValue::Object(map) => self.execute_object(context, &parameter.selection_sets, map),
             DataValue::Null => Ok(DataValue::Null),
             _ => Err(Error::DataTypeMisMatchError(
                 "Object(CustomType)".to_string(),
@@ -137,10 +137,10 @@ impl CustomType {
         }
     }
 
-    pub(crate) fn execute_object(
+    pub(crate) fn execute_object<'a, 'b>(
         &self,
-        context: QLContext,
-        selection_sets: Vec<Selection>,
+        context: &'a mut QLContext,
+        selection_sets: &'b Vec<Selection>,
         mut data_map: BTreeMap<String, DataValue>,
     ) -> Result<DataValue> {
         for set in selection_sets {
@@ -150,11 +150,11 @@ impl CustomType {
                     // self data does't have that key, but self fields has
                     if !data_map.contains_key(&name) && self.fields.contains_key(&name) {
                         let source = DataValue::Object(data_map.clone());
-                        let field_result = self.fields.get(&name).unwrap().execute(
-                            context.clone(),
-                            source,
-                            field,
-                        )?;
+                        let field_result = self
+                            .fields
+                            .get(&name)
+                            .unwrap()
+                            .execute(context, &source, field)?;
                         data_map.insert(name, field_result);
                     } else if !data_map.contains_key(&name) && !self.fields.contains_key(&name) {
                         data_map.insert(name, DataValue::Null);
@@ -190,21 +190,21 @@ pub struct Field {
 }
 
 impl Field {
-    pub(crate) fn execute(
+    pub(crate) fn execute<'a, 'b>(
         &self,
-        context: QLContext,
-        source: DataValue,
-        field: parser::Field,
+        context: &'a mut QLContext,
+        source: &'b DataValue,
+        field: &'b parser::Field,
     ) -> Result<DataValue> {
         let parameter = QLApiParam {
-            arguments: ArgumentValueMap::from(field.arguments),
+            arguments: ArgumentValueMap::from(field.arguments.to_owned()),
             selection_sets: field.selection_set.items.clone(),
         };
         let resolve_result = self
             .resolve
-            .call(context.clone(), source, parameter.clone())?
+            .call(context, source, &parameter)?
             .to_data_value();
-        self.field_type.execute(context, parameter, resolve_result)
+        self.field_type.execute(context, &parameter, resolve_result)
     }
 
     pub fn new(

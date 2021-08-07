@@ -22,16 +22,17 @@ pub struct Mutation {
 }
 
 impl Mutation {
-    pub(crate) fn execute(&self, context: QLContext, field: parser::Field) -> Result<DataValue> {
+    pub(crate) fn execute<'a, 'b>(
+        &self,
+        context: &'a mut QLContext,
+        field: parser::Field,
+    ) -> Result<DataValue> {
         let parameter = QLApiParam {
             arguments: ArgumentValueMap::from(field.arguments),
             selection_sets: field.selection_set.items,
         };
-        let resolve_result = self
-            .resolve
-            .call(context.clone(), parameter.clone())?
-            .to_data_value();
-        self.field_type.execute(context, parameter, resolve_result)
+        let resolve_result = self.resolve.call(context, &parameter)?.to_data_value();
+        self.field_type.execute(context, &parameter, resolve_result)
     }
 }
 

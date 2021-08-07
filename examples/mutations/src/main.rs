@@ -58,7 +58,7 @@ fn build_schema(datas: Storage) -> BuildResult<Schema> {
 fn create_query_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
     println!("[debug] query api building...");
     let result = Box::new(
-        move |_context, parameter: QLApiParam| -> Result<BoxedValue> {
+        move |_context: &mut QLContext, parameter: &QLApiParam| -> Result<BoxedValue> {
             let dv = parameter
                 .arguments
                 .get(&"id".to_string())
@@ -85,7 +85,7 @@ fn create_query_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
 fn create_mutation_func(datas: Storage) -> Box<dyn ApiResolveFunc> {
     println!("[debug] muttaion api building...");
     let result = Box::new(
-        move |_context, parameter: QLApiParam| -> Result<BoxedValue> {
+        move |_context: &mut QLContext, parameter: &QLApiParam| -> Result<BoxedValue> {
             let id = parameter
                 .arguments
                 .get(&"id".to_string())

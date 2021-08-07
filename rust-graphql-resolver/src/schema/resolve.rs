@@ -16,15 +16,23 @@ pub type BoxedValue = Box<dyn ToDataValue>;
 /// * context: storage and transfer key-value through invoking nested
 /// * parameter: arguments and selection_sets from graphql request
 pub trait ApiResolveFunc: DynClone {
-    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<BoxedValue>;
+    fn call<'a, 'b>(
+        &self,
+        context: &'a mut QLContext,
+        parameter: &'b QLApiParam,
+    ) -> Result<BoxedValue>;
 }
 clone_trait_object!(ApiResolveFunc);
 
 impl<F> ApiResolveFunc for F
 where
-    F: Fn(QLContext, QLApiParam) -> Result<BoxedValue> + Clone,
+    F: Fn(&'_ mut QLContext, &'_ QLApiParam) -> Result<BoxedValue> + Clone,
 {
-    fn call(&self, context: QLContext, parameter: QLApiParam) -> Result<BoxedValue> {
+    fn call<'a, 'b>(
+        &self,
+        context: &'a mut QLContext,
+        parameter: &'b QLApiParam,
+    ) -> Result<BoxedValue> {
         self(context, parameter)
     }
 }
@@ -34,7 +42,11 @@ where
 pub struct DefaultApiResolveFunc;
 
 impl ApiResolveFunc for DefaultApiResolveFunc {
-    fn call(&self, _context: QLContext, _parameter: QLApiParam) -> Result<BoxedValue> {
+    fn call<'a, 'b>(
+        &self,
+        _context: &'a mut QLContext,
+        _parameter: &'b QLApiParam,
+    ) -> Result<BoxedValue> {
         Err(Error::DefaultResolveError)
     }
 }
@@ -76,24 +88,24 @@ impl From<Vec<(String, ParserValue)>> for ArgumentValueMap {
 /// * source: parent data value result, you can get the data from last layer, but only one layer
 /// * parameter: arguments and selection_sets from graphql request
 pub trait FieldResolveFunc: DynClone {
-    fn call(
+    fn call<'a, 'b>(
         &self,
-        context: QLContext,
-        source: DataValue,
-        parameter: QLApiParam,
+        context: &'a mut QLContext,
+        source: &'b DataValue,
+        parameter: &'b QLApiParam,
     ) -> Result<BoxedValue>;
 }
 clone_trait_object!(FieldResolveFunc);
 
 impl<F> FieldResolveFunc for F
 where
-    F: Fn(QLContext, DataValue, QLApiParam) -> Result<BoxedValue> + Clone,
+    F: Fn(&'_ mut QLContext, &'_ DataValue, &'_ QLApiParam) -> Result<BoxedValue> + Clone,
 {
-    fn call(
+    fn call<'a, 'b>(
         &self,
-        context: QLContext,
-        source: DataValue,
-        parameter: QLApiParam,
+        context: &'a mut QLContext,
+        source: &'b DataValue,
+        parameter: &'b QLApiParam,
     ) -> Result<BoxedValue> {
         self(context, source, parameter)
     }
@@ -104,11 +116,11 @@ where
 pub struct DefaultFieldResolveFunc;
 
 impl FieldResolveFunc for DefaultFieldResolveFunc {
-    fn call(
+    fn call<'a, 'b>(
         &self,
-        _context: QLContext,
-        _source: DataValue,
-        _parameter: QLApiParam,
+        _context: &'a mut QLContext,
+        _source: &'b DataValue,
+        _parameter: &'b QLApiParam,
     ) -> Result<BoxedValue> {
         Err(Error::DefaultResolveError)
     }

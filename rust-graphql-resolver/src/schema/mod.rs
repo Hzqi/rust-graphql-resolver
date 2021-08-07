@@ -78,7 +78,7 @@ impl Schema {
 
     pub(crate) fn execute_operate(
         &self,
-        context: QLContext,
+        mut context: QLContext,
         op: OperationDefinition,
     ) -> Result<DataValue> {
         match op {
@@ -97,7 +97,7 @@ impl Schema {
                                 .queries
                                 .get(&name)
                                 .ok_or(Error::NotFoundError(format!("Query api {}", &name)))?
-                                .execute(context.clone(), field)?;
+                                .execute(&mut context, field)?;
                             result.insert(insert_key, query_result);
                         }
                         Selection::FragmentSpread(_) => {
@@ -129,7 +129,7 @@ impl Schema {
                                 .queries
                                 .get(&name)
                                 .ok_or(Error::NotFoundError(format!("Query api {}", &name)))?
-                                .execute(context.clone(), field)?;
+                                .execute(&mut context, field)?;
                             result.insert(insert_key, query_result);
                         }
                         Selection::FragmentSpread(_) => {
@@ -163,7 +163,7 @@ impl Schema {
                                 .ok_or(Error::MutationSchemaNotDefined)?
                                 .get(&name)
                                 .ok_or(Error::NotFoundError(format!("Mutation api {}", &name)))?
-                                .execute(context.clone(), field)?;
+                                .execute(&mut context, field)?;
                             result.insert(insert_key, mutation_result);
                         }
                         Selection::FragmentSpread(_) => {

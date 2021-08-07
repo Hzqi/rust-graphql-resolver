@@ -1,8 +1,4 @@
-use std::{
-    array::IntoIter,
-    collections::{BTreeMap, HashMap},
-    iter::FromIterator,
-};
+use std::{array::IntoIter, collections::BTreeMap, iter::FromIterator};
 
 use chrono::{DateTime, Utc};
 use rust_graphql_resolver::{
@@ -126,7 +122,10 @@ fn build_schema(datas: Vec<FullObject>) -> BuildResult<Schema> {
 
 fn extra_resolve() -> Box<dyn FieldResolveFunc> {
     Box::new(
-        |context: HashMap<String, DataValue>, _source, _parameter| -> Result<BoxedValue> {
+        |context: &mut QLContext,
+         _source: &DataValue,
+         _parameter: &QLApiParam|
+         -> Result<BoxedValue> {
             println!("[debug] resolving extra...");
 
             let col1 = match context.get(&"col1".to_string()) {
@@ -150,7 +149,7 @@ fn extra_resolve() -> Box<dyn FieldResolveFunc> {
 fn create_func(datas: Vec<FullObject>) -> Box<dyn ApiResolveFunc> {
     println!("[debug] invoke once...");
     Box::new(
-        move |_context, parameter: QLApiParam| -> Result<BoxedValue> {
+        move |_context: &mut QLContext, parameter: &QLApiParam| -> Result<BoxedValue> {
             println!("[debug] invoke every times...");
             let condition = parameter
                 .arguments

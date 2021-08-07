@@ -7,7 +7,7 @@ use rust_graphql_resolver::{
     schema::{
         field::Field,
         query::Query,
-        resolve::{BoxedValue, QLContext},
+        resolve::{BoxedValue, QLApiParam, QLContext},
         Schema,
     },
     value::{DataValue, ToDataValue},
@@ -39,13 +39,15 @@ fn build_schema() -> BuildResult<Schema> {
                 .build_field();
             QueryBuilder::new()
                 .set_type(field_type)
-                .set_resolve(Box::new(|_context, _param| -> Result<BoxedValue> {
-                    // result: { "name": "foo_name", "foo": "hello world" }
-                    Ok(Box::new(HelloWorld {
-                        hello: "rust".to_string(),
-                        greeting: "graphql-resolver".to_string(),
-                    }))
-                }))
+                .set_resolve(Box::new(
+                    |_context: &mut QLContext, _param: &QLApiParam| -> Result<BoxedValue> {
+                        // result: { "name": "foo_name", "foo": "hello world" }
+                        Ok(Box::new(HelloWorld {
+                            hello: "rust".to_string(),
+                            greeting: "graphql-resolver".to_string(),
+                        }))
+                    },
+                ))
                 .build()
         })?
         .build()
