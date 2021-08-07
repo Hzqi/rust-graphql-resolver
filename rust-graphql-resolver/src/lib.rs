@@ -2,7 +2,7 @@ pub mod builder;
 pub mod error;
 pub mod schema;
 pub mod value;
-pub use gurkle_parser as parser;
+pub use gurkle_parser as ast;
 
 use schema::{resolve::QLContext, Schema};
 use value::DataValue;

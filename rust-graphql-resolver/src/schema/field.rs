@@ -16,7 +16,7 @@ use super::resolve::{
     ArgumentValueMap, DefaultFieldResolveFunc, FieldResolveFunc, QLApiParam, QLContext,
 };
 
-use gurkle_parser::query as parser;
+use gurkle_parser::query as ast;
 
 /// FieldType
 #[derive(Clone, Debug)]
@@ -194,7 +194,7 @@ impl Field {
         &self,
         context: &'a mut QLContext,
         source: &'b DataValue,
-        field: &'b parser::Field,
+        field: &'b ast::Field,
     ) -> Result<DataValue> {
         let parameter = QLApiParam {
             arguments: ArgumentValueMap::from(field.arguments.to_owned()),
