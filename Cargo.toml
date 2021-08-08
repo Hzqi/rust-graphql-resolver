@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "rust-graphql-resolver",
+  "macros",
   "examples/hello-world",
   "examples/queries",
   "examples/mutations",

@@ -21,7 +21,7 @@ But it has many todos:
   - [ ] fully tests
   - [ ] async (this shouldn't be difficult)
   - [x] ~~add `From` and `Into` trait for Resolve functions~~ (Only implement `ToDataValue` trait for user custom resolve functions)
-    - [ ] derive macro for `ToDataValue`, to decrease definition codes
+    - [x] derive macro for `ToDataValue`, to decrease definition codes
   - [x] Builder tool for building the `Schema` instance
 
 ## Example
@@ -29,34 +29,23 @@ But it has many todos:
 To implement a easy hello world graphql query:
 
 ```rust
-use std::{array::IntoIter, collections::BTreeMap, iter::FromIterator};
-
 use rust_graphql_resolver::{
     builder::{field::CustomTypeBuilder, query::QueryBuilder, schema::SchemaBuilder},
     error::{BuildResult, Result},
     execute,
+    macros::GraphQLDataValue,
     schema::{
         field::Field,
         query::Query,
         resolve::{BoxedValue, QLApiParam, QLContext},
         Schema,
     },
-    value::{DataValue, ToDataValue},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, GraphQLDataValue)]
 struct HelloWorld {
     hello: String,
     greeting: String,
-}
-
-impl ToDataValue for HelloWorld {
-    fn to_data_value(&self) -> DataValue {
-        DataValue::Object(BTreeMap::from_iter(IntoIter::new([
-            ("hello".to_string(), self.hello.to_data_value()),
-            ("greeting".to_string(), self.greeting.to_data_value()),
-        ])))
-    }
 }
 
 fn build_schema() -> BuildResult<Schema> {

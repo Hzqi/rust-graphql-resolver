@@ -6,20 +6,20 @@ use rust_graphql_resolver::{
         field::{CustomTypeBuilder, QLEnumBuilder, QLInputBuilder},
         query::QueryBuilder,
         schema::SchemaBuilder,
-        value::DataValueObjectBuilder,
     },
     error::{BuildResult, Error, Result},
     execute,
+    macros::GraphQLDataValue,
     schema::{
         field::{CustomType, Field, FieldType, InputField, QLInput},
         query::Query,
         resolve::{ApiResolveFunc, BoxedValue, FieldResolveFunc, QLApiParam, QLContext},
         Schema,
     },
-    value::{DataValue, ToDataValue},
+    value::DataValue,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, GraphQLDataValue)]
 struct FullObject {
     id: String,
     str_value: String,
@@ -30,33 +30,10 @@ struct FullObject {
     color: String,
 }
 
-impl ToDataValue for FullObject {
-    fn to_data_value(&self) -> DataValue {
-        DataValueObjectBuilder::new()
-            .add_id_field("id", self.id.to_owned())
-            .add_str_field("str", self.str_value.to_owned())
-            .add_int_field("int", self.int_value.to_owned())
-            .add_float_field("float", self.float_value.to_owned())
-            .add_bool_field("bool", self.bool_value.to_owned())
-            .add_datetime_field("datetime", self.datetime.to_owned())
-            .add_str_field("color", self.color.to_owned())
-            .build()
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, GraphQLDataValue)]
 struct ExtraObject {
     col1: String,
     col2: i64,
-}
-
-impl ToDataValue for ExtraObject {
-    fn to_data_value(&self) -> DataValue {
-        DataValueObjectBuilder::new()
-            .add_str_field("col1", self.col1.to_owned())
-            .add_int_field("col2", self.col2.to_owned())
-            .build()
-    }
 }
 
 fn build_schema(datas: Vec<FullObject>) -> BuildResult<Schema> {
@@ -108,7 +85,6 @@ fn build_schema(datas: Vec<FullObject>) -> BuildResult<Schema> {
                 .build_ok()
         })?
         .add_query("fullObjects", |sch| -> BuildResult<Query> {
-            // Type: [FullObject!]
             let field_type = FieldType::List(Box::new(FieldType::NonNullType(Box::new(
                 sch.get_object_type("FullObject")?,
             ))));
@@ -129,19 +105,18 @@ fn extra_resolve() -> Box<dyn FieldResolveFunc> {
             println!("[debug] resolving extra...");
 
             let col1 = match context.get(&"col1".to_string()) {
-                Some(r @ DataValue::String(_)) => r.to_owned(),
-                _ => DataValue::Null,
+                Some(DataValue::String(s)) => s.to_owned(),
+                _ => String::default(),
             };
             let col2 = match context.get(&"col2".to_string()) {
-                Some(r @ DataValue::Int(_)) => r.to_owned(),
-                _ => DataValue::Null,
+                Some(DataValue::Int(i)) => i.to_owned(),
+                _ => 0,
             };
 
-            Ok(DataValueObjectBuilder::new()
-                .add_any_field("col1", col1)
-                .add_any_field("col2", col2)
-                .build()
-                .to_boxed())
+            Ok(Box::new(ExtraObject {
+                col1: col1,
+                col2: col2,
+            }))
         },
     )
 }
@@ -261,10 +236,10 @@ fn query() {
     { 
         fullObjects(condition: {}) { 
             id 
-            str 
-            int 
-            float 
-            bool 
+            str_value 
+            int_value 
+            float_value 
+            bool_value 
             datetime 
             color 
             extra { 
@@ -291,10 +266,10 @@ fn query() {
     { 
         fullObjects(condition: {color: Red}) { 
             id 
-            str 
-            int 
-            float 
-            bool 
+            str_value 
+            int_value 
+            float_value 
+            bool_value 
             datetime 
             color 
             extra { 
@@ -314,9 +289,9 @@ fn query() {
     { 
         fullObjects(condition: {bool: true}) { 
             id 
-            int 
-            float 
-            bool 
+            int_value 
+            float_value 
+            bool_value
             color 
         } 
     }
