@@ -131,7 +131,7 @@ fn mutation_and_query() {
         }
     }
     "#;
-    let result1 = execute(context.clone(), request1, &schema).unwrap();
+    let result1 = execute(context.clone(), request1, &schema, None).unwrap();
     println!(
         "result: {}",
         serde_json::to_string_pretty(&result1).unwrap()
@@ -153,7 +153,7 @@ fn mutation_and_query() {
         }
     }
     "#;
-    let result2 = execute(context.clone(), request2, &schema).unwrap();
+    let result2 = execute(context.clone(), request2, &schema, None).unwrap();
     println!(
         "result: {}",
         serde_json::to_string_pretty(&result2).unwrap()

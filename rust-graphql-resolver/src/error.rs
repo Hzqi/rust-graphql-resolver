@@ -14,6 +14,13 @@ pub enum Error {
     MissingReferenceCustomTypeError,
     #[error("Mutation schema not defined")]
     MutationSchemaNotDefined,
+
+    #[error("Must provide operation name if query contains multiple operations")]
+    MultipleOperationNeedTarget,
+    #[error("There can only be one operation named {0}")]
+    OnlyOneOperationCanNamed(String),
+    #[error("This anonymous operation must be the only defined operation")]
+    MustBeDefinedAnonymousOperation,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

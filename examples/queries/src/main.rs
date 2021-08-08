@@ -274,7 +274,7 @@ fn query() {
         } 
     }
     "#;
-    let result1 = execute(context1, request1, &schema).unwrap();
+    let result1 = execute(context1, request1, &schema, None).unwrap();
     println!(
         "result: {}",
         serde_json::ser::to_string_pretty(&result1).unwrap()
@@ -304,7 +304,7 @@ fn query() {
         } 
     }
     "#;
-    let result2 = execute(context2, request2, &schema).unwrap();
+    let result2 = execute(context2, request2, &schema, None).unwrap();
     println!(
         "result: {}",
         serde_json::ser::to_string_pretty(&result2).unwrap()
@@ -321,7 +321,7 @@ fn query() {
         } 
     }
     "#;
-    let result3 = execute(QLContext::default(), request3, &schema).unwrap();
+    let result3 = execute(QLContext::default(), request3, &schema, None).unwrap();
     println!(
         "result: {}",
         serde_json::ser::to_string_pretty(&result3).unwrap()

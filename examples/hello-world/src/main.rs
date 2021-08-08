@@ -64,7 +64,7 @@ fn main() {
             } 
         }
         "#;
-        let result = execute(QLContext::default(), request, &schema).unwrap();
+        let result = execute(QLContext::default(), request, &schema, None).unwrap();
         println!(
             "result: {}",
             serde_json::ser::to_string_pretty(&result).unwrap()
