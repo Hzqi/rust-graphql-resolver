@@ -38,6 +38,7 @@ pub struct NotSupported;
 pub struct Schema {
     /// for tracting instance's id
     pub id: String,
+    pub description: Option<String>,
     pub queries: QueryMap,
     pub mutations: Option<MutationMap>,
     /// TODO: Subscrition
