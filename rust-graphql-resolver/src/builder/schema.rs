@@ -20,6 +20,7 @@ impl SchemaBuilder {
         Self {
             status: Schema {
                 id: name.to_string(),
+                description: None,
                 queries: QueryMap::default(),
                 mutations: None,
                 subscritions: None,
@@ -33,6 +34,11 @@ impl SchemaBuilder {
     /// Final action to build the Schema
     pub fn build(self) -> BuildResult<Schema> {
         Ok(self.status)
+    }
+
+    pub fn set_description(mut self, desc: String) -> Self {
+        self.status.description = Some(desc);
+        self
     }
 
     /// Add a query to Schema
