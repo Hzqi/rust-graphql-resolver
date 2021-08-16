@@ -9,7 +9,7 @@ For two reasons:
 But it has many todos:
 - [ ] Basic GraphQL
   - [x] basic Query and execution
-  - [ ] Fragment
+  - [x] Fragment
   - [ ] InlineFragement
   - [ ] Introspection
   - [x] Mutation

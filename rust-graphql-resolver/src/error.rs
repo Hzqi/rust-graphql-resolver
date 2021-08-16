@@ -21,6 +21,9 @@ pub enum Error {
     OnlyOneOperationCanNamed(String),
     #[error("This anonymous operation must be the only defined operation")]
     MustBeDefinedAnonymousOperation,
+
+    #[error("No such Fragment {0}")]
+    NoSuchFragment(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -7,7 +7,7 @@ use super::{
     resolve::{ApiResolveFunc, ArgumentValueMap, QLApiParam, QLContext},
 };
 
-use gurkle_parser::query as ast;
+use gurkle_parser::query::{self as ast, FragmentDefinition};
 
 /// MutationMap
 pub type MutationMap = HashMap<String, Mutation>;
@@ -25,6 +25,7 @@ impl Mutation {
     pub(crate) fn execute<'a, 'b>(
         &self,
         context: &'a mut QLContext,
+        fragments: &'b HashMap<String, FragmentDefinition>,
         field: ast::Field,
     ) -> Result<DataValue> {
         let parameter = QLApiParam {
@@ -32,7 +33,8 @@ impl Mutation {
             selection_sets: field.selection_set.items,
         };
         let resolve_result = self.resolve.call(context, &parameter)?.to_data_value();
-        self.field_type.execute(context, &parameter, resolve_result)
+        self.field_type
+            .execute(context, fragments, &parameter, resolve_result)
     }
 }
 

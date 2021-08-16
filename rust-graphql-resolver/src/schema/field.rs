@@ -1,11 +1,11 @@
 use std::{
     cell::RefCell,
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     fmt::Debug,
     rc::{Rc, Weak},
 };
 
-use gurkle_parser::query::Selection;
+use gurkle_parser::query::{FragmentDefinition, Selection};
 
 use crate::{
     error::{Error, Result},
@@ -34,6 +34,7 @@ impl FieldType {
     pub(crate) fn execute<'a, 'b>(
         &self,
         context: &'a mut QLContext,
+        fragments: &'b HashMap<String, FragmentDefinition>,
         parameter: &'b QLApiParam,
         data: DataValue,
     ) -> Result<DataValue> {
@@ -44,13 +45,13 @@ impl FieldType {
                     "NonNull<...>".to_string(),
                     "Null".to_string(),
                 )),
-                _ => t.execute(context, parameter, data),
+                _ => t.execute(context, fragments, parameter, data),
             },
             FieldType::List(list_type) => match data {
                 DataValue::List(data_list) => {
                     let mut result = vec![];
                     for dat in data_list {
-                        let item = list_type.execute(context, parameter, dat)?;
+                        let item = list_type.execute(context, fragments, parameter, dat)?;
                         result.push(item)
                     }
                     Ok(DataValue::List(result))
@@ -74,12 +75,14 @@ impl FieldType {
                     "NonString".to_string(),
                 )),
             },
-            FieldType::CustomType(custom_type) => custom_type.execute(context, parameter, data),
+            FieldType::CustomType(custom_type) => {
+                custom_type.execute(context, fragments, parameter, data)
+            }
             FieldType::ReferenceCustom(custom_type_rc) => custom_type_rc
                 .upgrade()
                 .ok_or(Error::MissingReferenceCustomTypeError)?
                 .borrow()
-                .execute(context, parameter, data),
+                .execute(context, fragments, parameter, data),
         }
     }
 }
@@ -124,11 +127,15 @@ impl CustomType {
     pub(crate) fn execute<'a, 'b>(
         &self,
         context: &'a mut QLContext,
+        fragments: &'b HashMap<String, FragmentDefinition>,
         parameter: &'b QLApiParam,
         data: DataValue,
     ) -> Result<DataValue> {
         match data {
-            DataValue::Object(map) => self.execute_object(context, &parameter.selection_sets, map),
+            DataValue::Object(mut map) => {
+                self.execute_object(context, fragments, &parameter.selection_sets, &mut map)?;
+                Ok(DataValue::Object(map))
+            }
             DataValue::Null => Ok(DataValue::Null),
             _ => Err(Error::DataTypeMisMatchError(
                 "Object(CustomType)".to_string(),
@@ -140,9 +147,10 @@ impl CustomType {
     pub(crate) fn execute_object<'a, 'b>(
         &self,
         context: &'a mut QLContext,
+        fragments: &'b HashMap<String, FragmentDefinition>,
         selection_sets: &'b Vec<Selection>,
-        mut data_map: BTreeMap<String, DataValue>,
-    ) -> Result<DataValue> {
+        data_map: &mut BTreeMap<String, DataValue>,
+    ) -> Result<()> {
         for set in selection_sets {
             match set {
                 Selection::Field(field) => {
@@ -154,7 +162,7 @@ impl CustomType {
                             .fields
                             .get(&name)
                             .unwrap()
-                            .execute(context, &source, field)?;
+                            .execute(context, fragments, &source, field)?;
                         data_map.insert(name, field_result);
                     } else if !data_map.contains_key(&name) && !self.fields.contains_key(&name) {
                         data_map.insert(name, DataValue::Null);
@@ -164,10 +172,16 @@ impl CustomType {
                         continue;
                     }
                 }
-                Selection::FragmentSpread(_) => {
-                    return Err(Error::UnSupportedYetError(
-                        "'FragmentSpread' in custom field".to_string(),
-                    ))
+                Selection::FragmentSpread(fs) => {
+                    let fragment = fragments
+                        .get(&fs.fragment_name)
+                        .ok_or(Error::NoSuchFragment(fs.fragment_name.clone()))?;
+                    self.execute_object(
+                        context,
+                        fragments,
+                        &fragment.selection_set.items,
+                        data_map,
+                    )?;
                 }
                 Selection::InlineFragment(_) => {
                     return Err(Error::UnSupportedYetError(
@@ -176,7 +190,8 @@ impl CustomType {
                 }
             }
         }
-        Ok(DataValue::Object(data_map))
+        //Ok(DataValue::Object(data_map))
+        Ok(())
     }
 }
 
@@ -193,6 +208,7 @@ impl Field {
     pub(crate) fn execute<'a, 'b>(
         &self,
         context: &'a mut QLContext,
+        fragments: &'b HashMap<String, FragmentDefinition>,
         source: &'b DataValue,
         field: &'b ast::Field,
     ) -> Result<DataValue> {
@@ -204,7 +220,8 @@ impl Field {
             .resolve
             .call(context, source, &parameter)?
             .to_data_value();
-        self.field_type.execute(context, &parameter, resolve_result)
+        self.field_type
+            .execute(context, fragments, &parameter, resolve_result)
     }
 
     pub fn new(

@@ -5,4 +5,5 @@ members = [
   "examples/hello-world",
   "examples/queries",
   "examples/mutations",
+  "examples/fragments",
 ]

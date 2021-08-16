@@ -193,7 +193,7 @@ impl Schema {
         &self,
         mut context: QLContext,
         sets: SelectionSet,
-        _fragments: &HashMap<String, FragmentDefinition>,
+        fragments: &HashMap<String, FragmentDefinition>,
     ) -> Result<DataValue> {
         let mut result = BTreeMap::<String, DataValue>::new();
         for set in sets.items {
@@ -209,7 +209,7 @@ impl Schema {
                         .queries
                         .get(&name)
                         .ok_or(Error::NotFoundError(format!("Query api {}", &name)))?
-                        .execute(&mut context, field)?;
+                        .execute(&mut context, fragments, field)?;
                     result.insert(insert_key, query_result);
                 }
                 Selection::FragmentSpread(_) => {
@@ -240,7 +240,7 @@ impl Schema {
         &self,
         mut context: QLContext,
         mutation: AstMutation,
-        _fragments: &HashMap<String, FragmentDefinition>,
+        fragments: &HashMap<String, FragmentDefinition>,
     ) -> Result<DataValue> {
         let mut result = BTreeMap::<String, DataValue>::new();
         for set in mutation.selection_set.items {
@@ -258,7 +258,7 @@ impl Schema {
                         .ok_or(Error::MutationSchemaNotDefined)?
                         .get(&name)
                         .ok_or(Error::NotFoundError(format!("Mutation api {}", &name)))?
-                        .execute(&mut context, field)?;
+                        .execute(&mut context, fragments, field)?;
                     result.insert(insert_key, mutation_result);
                 }
                 Selection::FragmentSpread(_) => {
