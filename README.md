@@ -1,5 +1,7 @@
 # rust-graphql-resolver
 
+# NEED TO REFACTOR
+
 This a simple tool to implement graphql.
 
 For two reasons: 
