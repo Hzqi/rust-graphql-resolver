@@ -4,6 +4,7 @@ pub mod schema;
 pub mod value;
 pub use gurkle_parser as ast;
 pub use macros;
+pub use maplit;
 
 use schema::{resolve::QLContext, Schema};
 use value::DataValue;

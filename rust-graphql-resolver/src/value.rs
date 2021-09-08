@@ -10,7 +10,6 @@ use gurkle_parser::query::Value as ParserValue;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataValue {
-    ID(String),
     String(String),
     Int(i64),
     Float(f64),
@@ -22,9 +21,6 @@ pub enum DataValue {
 }
 
 impl DataValue {
-    pub fn boxed_id(id: String) -> Box<DataValue> {
-        Box::new(Self::ID(id))
-    }
     pub fn boxed_string(s: String) -> Box<DataValue> {
         Box::new(Self::String(s))
     }
@@ -56,7 +52,6 @@ impl DataValue {
 
     pub fn get_type_name(&self) -> String {
         match self {
-            DataValue::ID(_) => "ID".to_string(),
             DataValue::String(_) => "String".to_string(),
             DataValue::Int(_) => "Int".to_string(),
             DataValue::Float(_) => "Float".to_string(),
@@ -107,7 +102,6 @@ impl Serialize for DataValue {
         S: serde::Serializer,
     {
         match self {
-            DataValue::ID(str) => serializer.serialize_str(str),
             DataValue::String(str) => serializer.serialize_str(str),
             DataValue::Int(i) => serializer.serialize_i64(*i),
             DataValue::Float(f) => serializer.serialize_f64(*f),

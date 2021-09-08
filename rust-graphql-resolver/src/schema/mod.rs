@@ -1,7 +1,12 @@
+use self::{
+    root::{MutationMap, QueryMap},
+    storage::TypeStorage,
+};
+
+pub mod executor;
 pub mod field;
-pub mod mutation;
-pub mod query;
 pub mod resolve;
+pub mod root;
 pub mod storage;
 pub mod types;
 
@@ -24,3 +29,8 @@ pub struct Schema {
 
     pub(crate) type_storage: TypeStorage,
 }
+
+// TODO: execute_introspection()
+// schema 只需要生成一个磨人的query字段"__schema"即可，
+// 其字段结构就包含了所有内省的字段结构，而每个的处理方式
+// 就是通过其字段类型/root接口的execute_introspection()处理所得
