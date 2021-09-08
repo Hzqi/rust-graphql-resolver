@@ -6,7 +6,7 @@ use super::{
     resolve::{QLApiParam, QLContext},
     Schema,
 };
-use gurkle_parser::query::{self as ast};
+use gurkle_parser::query as ast;
 
 /// RootExecutor provide execute function for root apis
 pub(crate) trait RootExecutor {

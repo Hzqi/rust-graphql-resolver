@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 
-use gurkle_parser::query::{self as ast};
+use gurkle_parser::query as ast;
 
 use dyn_clone::{clone_trait_object, DynClone};
 
@@ -10,6 +10,7 @@ use crate::{
     value::DataValue,
 };
 
+use super::executor::FieldExecutor;
 use super::{
     executor::TypeExecutor,
     field::{Field, InputField},
@@ -147,10 +148,10 @@ pub struct DirectEnum {
 impl TypeExecutor for DirectEnum {
     fn execute<'schema, 'a, 'b>(
         &self,
-        schema: &'schema Schema,
-        context: &'a mut QLContext,
-        fragments: &'b HashMap<String, ast::FragmentDefinition>,
-        parameter: &'b QLApiParam,
+        _schema: &'schema Schema,
+        _context: &'a mut QLContext,
+        _fragments: &'b HashMap<String, ast::FragmentDefinition>,
+        _parameter: &'b QLApiParam,
         data: DataValue,
     ) -> Result<DataValue> {
         match data {
@@ -158,7 +159,7 @@ impl TypeExecutor for DirectEnum {
                 .values
                 .iter()
                 .find(|v| v.value == str)
-                .and(Some(data))
+                .and(Some(DataValue::String(str.clone())))
                 .ok_or(Error::NotFoundError(format!(
                     "enum value: {} in enum: {} ",
                     str, self.name

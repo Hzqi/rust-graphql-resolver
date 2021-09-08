@@ -1,11 +1,14 @@
 use std::{collections::HashMap, fmt::Debug};
 
+use gurkle_parser::query as ast;
+
 use crate::{error::Result, value::DataValue};
 
 use super::{
-    executor::RootExecutor,
-    resolve::ApiResolveFunc,
+    executor::{RootExecutor, TypeExecutor},
+    resolve::{ApiResolveFunc, ArgumentValueMap, QLApiParam, QLContext},
     types::{ArgumentMap, FieldType},
+    Schema,
 };
 
 /// QueryMap
@@ -33,16 +36,22 @@ impl Debug for RootField {
     }
 }
 
-// impl RootExecutor for RootField {
-//     fn execute<'schema, 'a, 'b>(
-//         &self,
-//         schema: &'schema super::Schema,
-//         context: &'a mut super::resolve::QLContext,
-//         fragments: &'b HashMap<String, gurkle_parser::query::FragmentDefinition>,
-//         field: gurkle_parser::query::Field,
-//     ) -> Result<DataValue> {
-
-//     }
-// }
+impl RootExecutor for RootField {
+    fn execute<'schema, 'a, 'b>(
+        &self,
+        schema: &'schema Schema,
+        context: &'a mut QLContext,
+        fragments: &'b HashMap<String, ast::FragmentDefinition>,
+        field: ast::Field,
+    ) -> Result<DataValue> {
+        let parameter = QLApiParam {
+            arguments: ArgumentValueMap::from(field.arguments),
+            selection_sets: field.selection_set.items,
+        };
+        let resolve_result = self.resolve.call(context, &parameter)?;
+        self.field_type
+            .execute(schema, context, fragments, &parameter, resolve_result)
+    }
+}
 
 // TODO: execute_introspection()
